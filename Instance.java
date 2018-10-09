@@ -62,6 +62,8 @@ public class Instance {
 	
 	public int cplexMIPresult;
 	public double cplexLPresult;
+	public double cplexTicksWithConstraints = 0.0;
+	public double cplexTicksWithoutConstraints = 0.0;
 	
 	//stats
 	public int minDist;
@@ -162,6 +164,8 @@ public class Instance {
 		
 		cplexMIPresult = 0;
 		cplexLPresult =0.0;
+		cplexTicksWithConstraints = 0.0;
+		cplexTicksWithoutConstraints = 0.0;
 		
 		//stats
 		int dist = 0;
@@ -1343,7 +1347,7 @@ public class Instance {
 		best_upper_bound = medianDist;
 		isOptimal = true;
 	}
-	public void decalreIsOptimal(){
+	public void declareIsOptimal(){
 		best_lower_bound = best_upper_bound;
 		isOptimal = true;
 	}

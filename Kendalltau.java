@@ -51,18 +51,10 @@ public class Kendalltau {
 	DecimalFormat df = new DecimalFormat("#.##");
 		
 	static Set<Permutation> Sn; //ensemble de toutes les permutations
-	static Set<Permutation> SnUnderConstraints;// like Sn but with permutation that are respecting the constraints
-	
-	//static boolean[][] tabMOT4;//matrice de contraintes MOT: tabMOT[i][j]=true == (i<j) ds contraintes MOT
-	//static int[][] tabMOT4dist;//matrice de contraintes MOT: tabMOT[i][j]=true == (i<j) ds contraintes MOT
-	
 
 	static int minSubScoresSize = 0;
 	static int maxSubScoresSize = 0;
 	static int memoryLimit;//max entries in the topScores collection
-	
-
-	
 	
 
 	//statistics
@@ -72,8 +64,6 @@ public class Kendalltau {
 
 	static double thm_ECC_stats = 0.0;
 	static double thm_always_stats = 0.0;
-	static double thm_major_1_0_stats = 0.0;
-	static double thm_major_2_0_stats = 0.0;
 	static double thm_major_3_0_stats = 0.0;
 	static List<Double> thm_MOT3_stats_values;
 	static double thm_MOT3_iterationAvg_stats = 0.0;
@@ -81,28 +71,11 @@ public class Kendalltau {
 	static List<Double> thm_MOT3_LUBC_stats_values;
 	static double thm_MOT3_LUBC_iterationAvg_stats = 0.0;
 	static double thm_MOT3_iterationMax_stats = 0.0;
-	static double thm_betzler_stats = 0.0;
-	
-	static boolean thm_betzler_application = false;
-	static double thm_betzler_application_stats = 0.0;//combien de fois Betzler est applicable
-	static double thm_major_3_0_revised_count = 0.0;//stats de Major 3.0 sur les donnees Betzler-applicable
-	static double thm_betzler_revised_count = 0.0;//stats de Betzler sur les donnees Betzler-applicable
-	static double thm_major_3_0_revised_stats = 0.0;//stats de Major 3.0 sur les donnees Betzler-applicable
-	static double thm_betzler_revised_stats = 0.0;//stats de Betzler sur les donnees Betzler-applicable
-	static double thms_inclusion_revised_stats = 0.0;//stats sur le nombre de fois ou major est inclu dans betzler
 	
 	static String resoluMOT = "";//pour algo, % paires ordonnees par MOT
 	static double totalMedianes = 0.0;//pour stats
 	static double nbMedianesPaires = 0.0;//pour stats
 	static double nbMedianesImpaires = 0.0;//pour stats
-	
-	
-	
-	//test inclusion thms betzler ds cool
-	static List<IntPair> contraintesCool = new ArrayList<IntPair>(); //liste des contraintes
-	static List<IntPair> contraintesBetzler = new ArrayList<IntPair>(); //liste des contraintes
-	static boolean[][] tabContraintesBetzler;
-	
 	
 	
 	//SA stats
@@ -177,8 +150,8 @@ public class Kendalltau {
 	    
 	    //statsLauncherIWOCA2017 (10, 1000, 999, false);
 	    //postIwocaStats();
-		singleResolution();
-		//statsOnPrefLibData("socFiles.txt");
+		//singleResolution();
+		statsOnPrefLibData("socFiles.txt");
 
 		
 		lEndTime = new Date().getTime(); //end timeetudeEcartMax
@@ -238,7 +211,8 @@ public class Kendalltau {
 		
 		//solvers:
 		BranchAndBound(myInstance, true);
-		//cplexUsage(myInstance, true, true); //CPLEXcheck
+		//cplexUsage(myInstance, true, true, false); //CPLEXcheck
+		//cplexUsage(myInstance, true, true, true); //CPLEXcheck
 
 		
 		//myInstance.writeResultIntoFile("lecture_ecriture/fichier_test1.results");
@@ -277,7 +251,6 @@ public class Kendalltau {
 		thm_MOT3_LUBC_stats_values = new ArrayList<Double>();
 
 		boolean SAsuccess = false;
-		double solvedConflictingPairs = 0.0;
 
 		System.out.println(filesToTest.size() + " files found");
 		if (equality){
@@ -285,14 +258,14 @@ public class Kendalltau {
 		}else{
 			System.out.println("name" + "\t\t\t" + "m"+ "\t" + "n"+ "\t" + "SA"+ "\t" + "suc.?"+ "\t" + "Always"+ "\t" + "ECC"+ "\t" + "MOT+L.");
 		}
-		for (int i =0; i< filesToTest.size(); i+=1){//256,1000
+		for (int i =200; i< filesToTest.size(); i+=1){//256,1000
 			thm_MOT3_LUBC_stats = 0.0;
 			thm_always_stats = 0.0;
 			thm_ECC_stats = 0.0;
 			Instance myInstance = new Instance();
 			myInstance.loadFromFilePrefLibFormat("soc/"+filesToTest.get(i));
 			//myInstance.print();
-			int threshold = 95;//60 MOT3+LUBC,95 MOT3e+LUBC
+			int threshold = 40;//60 MOT3+LUBC,95 MOT3e+LUBC
 			if (myInstance.n >= 3 && myInstance.n <= threshold){
 				//heuristicSA(myInstance,false, false,3);
 				//MOT3_LUBC(myInstance, false, false, false, egalite);
@@ -301,27 +274,44 @@ public class Kendalltau {
 				constraintsPack(myInstance,false,equality);
 				lowerBoundPack(myInstance,false);
 				BranchAndBound(myInstance, false);
+				//cplexUsage(myInstance, true, false, false); //CPLEXcheck
+				//cplexUsage(myInstance, true, false, true); //CPLEXcheck
+
 				if (myInstance.isOptimal && myInstance.best_lower_bound == myInstance.SA_upper_bound){
 					SAsuccess = true;
 				}else{
 					SAsuccess = false;
 				}
-				System.out.println(filesToTest.get(i) + "\t" + myInstance.m+ "\t" + myInstance.n
-						+ "\t" + myInstance.best_upper_bound+ "\t" + SAsuccess
-						+ "\t"+ df.format(100.0*thm_always_stats/(myInstance.nbPairs))
-						+ "%\t"+ df.format(100.0*thm_ECC_stats/(myInstance.nbPairs))
-						+ "%\t"+ df.format(100.0*thm_MOT3_LUBC_stats/(myInstance.nbPairs))
-						+ "%\t");
-			}else if (myInstance.n > threshold && myInstance.n <= 150){
+				System.out.println(filesToTest.get(i) + "\t" + myInstance.m+ "\t" + myInstance.n + "\t" 
+						+ myInstance.best_upper_bound+ "\t" + SAsuccess+ "\t"
+						+ df.format(100.0*thm_always_stats/(myInstance.nbPairs))+ "%\t"
+						+ df.format(100.0*thm_ECC_stats/(myInstance.nbPairs))+ "%\t"
+						+ df.format(100.0*thm_MOT3_LUBC_stats/(myInstance.nbPairs))+ "%\t"
+						+ myInstance.cplexTicksWithoutConstraints+ "\t"
+						+ myInstance.cplexTicksWithConstraints+ "\t"
+						+ (myInstance.cplexTicksWithoutConstraints/myInstance.cplexTicksWithConstraints)+ "\t"
+						);
+			}else if (myInstance.n > threshold && myInstance.n <= 100){
 				heuristicSA(myInstance,false, false,3);
 				constraintsPack(myInstance,false,equality);
 				lowerBoundPack(myInstance,false);
-				System.out.println(filesToTest.get(i) + "\t" + myInstance.m+ "\t" + myInstance.n
-						+ "\t" + myInstance.best_upper_bound+ "\t" + "??"
-						+ "\t"+ df.format(100.0*thm_always_stats/(myInstance.nbPairs))
-						+ "%\t"+ df.format(100.0*thm_ECC_stats/(myInstance.nbPairs))
-						+ "%\t"+ df.format(100.0*thm_MOT3_LUBC_stats/(myInstance.nbPairs))
-						+ "%\t");
+				//cplexUsage(myInstance, true, false, false); //CPLEXcheck
+				//cplexUsage(myInstance, true, false, true); //CPLEXcheck
+				if (myInstance.isOptimal && myInstance.best_lower_bound == myInstance.SA_upper_bound){
+					SAsuccess = true;
+				}else{
+					SAsuccess = false;
+				}
+				System.out.println(filesToTest.get(i) + "\t" + myInstance.m+ "\t" + myInstance.n+ "\t" 
+						//+ myInstance.best_upper_bound+ "\t" + SAsuccess+ "\t"
+						+ myInstance.best_upper_bound+ "\t" + "??"+ "\t"
+						+ df.format(100.0*thm_always_stats/(myInstance.nbPairs))+ "%\t"
+						+ df.format(100.0*thm_ECC_stats/(myInstance.nbPairs))+ "%\t"
+						+ df.format(100.0*thm_MOT3_LUBC_stats/(myInstance.nbPairs))+ "%\t"
+						//+ myInstance.cplexTicksWithoutConstraints+ "\t"
+						//+ myInstance.cplexTicksWithConstraints+ "\t"
+						//+ (myInstance.cplexTicksWithoutConstraints/myInstance.cplexTicksWithConstraints)+ "\t"
+						);
 			}else{
 				System.out.println(filesToTest.get(i) + "\t" + myInstance.m+ "\t" + myInstance.n
 						+ "\t" + "-" + "\t" + "-"+ "\t" + "-"+ "\t" + "-");
@@ -359,7 +349,7 @@ public class Kendalltau {
 	    
 		for (int i = 1; i <= numberOfCases;i++){
 		    Instance myInstance = new Instance(m,n);
-		    //cplexUsage(myInstance, true, false); //CPLEXcheck
+		    //cplexUsage(myInstance, true, false, false); //CPLEXcheck
 		    
 		    for (int j = 1; j <= numberOfSARepetions;j++){
 				heuristicSA(myInstance, false ,false,SAmode);
@@ -596,9 +586,9 @@ public class Kendalltau {
 		myInstance.trimMedianSet();
 
 	}
-	/*
+	
 	//CPLEXcheck
-	public static void cplexUsage(Instance myInstance, boolean MIP, boolean verbose){
+	/*public static void cplexUsage(Instance myInstance, boolean MIP, boolean verbose, boolean useConstraints){
 		if (verbose) System.out.println("");
 		if (verbose) System.out.println(" ***CPLEX***");
 		if (verbose) System.out.println("");
@@ -615,6 +605,7 @@ public class Kendalltau {
 	         // create model and solve it
 			
 			cplex.setOut(null);//quiet mode
+			double cplexStartTime = cplex.getCplexTime();
 			
 			IloNumVar[] x;
 			if (MIP){
@@ -644,6 +635,16 @@ public class Kendalltau {
 				}
 			}
 			
+			if (useConstraints) {
+				for(int i=1;i<=n;i++){
+					for(int j=1;j<=n;j++){
+						if (myInstance.tabC[i-1][j-1]) {
+							cplex.addEq(x[coord[i-1][j-1]], 1);
+						}
+					}
+				}
+			}
+			
 			for(int i=1;i<=n;i++){
 				for(int j=1;j<=n;j++){
 					if (i !=j){
@@ -670,21 +671,32 @@ public class Kendalltau {
 			//objval -= 0.001;//to cope with numerical residus
 			if (verbose) System.out.println("cplex objval: "+objval + "  ("+Math.ceil(objval)+")");
 			
+			if (useConstraints) {
+				myInstance.cplexTicksWithConstraints = cplex.getCplexTime()-cplexStartTime;
+			}else {
+				myInstance.cplexTicksWithoutConstraints = cplex.getCplexTime()-cplexStartTime;
+			}
 			
 			if (MIP){
 				myInstance.cplexMIPresult = (int)objval;
+				myInstance.setUpperBound(myInstance.cplexMIPresult);
+				myInstance.declareIsOptimal();
+				
 			}else{
 				myInstance.cplexLPresult = objval;
 			}
 			
+			//System.out.println("cplex ticks: "+ (cplex.getCplexTime()-cplexStartTime));
+			
 			cplex.clearModel();
 			cplex.end();
+			
 			
 	    } catch (IloException e) {
 	    	System.err.println("Concert exception caught: " + e);
 	    }
-	}
-	*/
+	}*/
+	
 	
 	private static void heuristicCircMvtLocalSearch(Instance myInstance, boolean verbose, boolean zeroMovesAllowed) {
 		// TODO Auto-generated method stub
@@ -1656,151 +1668,7 @@ public class Kendalltau {
 		}
 	}
 
-	private static void geographySpaceSn() {
-		int n=9;
-		Instance myInstance = new Instance(3,n);
-		//tabD = creationTabD(A);
-		myInstance.print();
-		//SortedSet<Permutation> toTake = new TreeSet<Permutation>();
-		List<Permutation> toTake = new ArrayList<Permutation>();
-		Set<Permutation> Neighborhood = new HashSet<Permutation>();
-		List<Permutation> minimumsLocaux = new ArrayList<Permutation>();
-		
-		myInstance.tabC = new boolean [n][n];
-		for (int i = 1; i<= n; i++){
-			for (int j = 1; j<= n; j++){
-				myInstance.tabC[i-1][j-1]=false;
-			}
-		}
-		
-		
-		
-		//MOT3(null,A,false, false, true, false,999999);//*modified inst
-		MOT3_LUBC(myInstance,false, false, true, false);//*modified inst
-		
-		creerSnUnderConstraints(myInstance);
-		//creerSn(n);
-		//printSn();
-		
-		for (Permutation pi : SnUnderConstraints){
-			int dist = pi.distanceToSetMatrix(myInstance.tabD);
-			pi.setDist(dist);
-			toTake.add(pi);
-		}
-		
-		
-		//toTake.sort(Permutation.PermutationComparator);
-		toTake.sort(null);
-		//Collections.sort(toTake);
-		
-		printList(toTake);
-		//printSet(toTake);
-		
-		//int a[] = {1,2,3,4,5};
-		//printSet(generateNeighborhood(new Permutation(a)));
-		
-		for (Permutation p: toTake){
-			//Neighborhood = generateNeighborhood(p);
-			Neighborhood = generateNeighborhoodCirc(p);
-			for (Permutation neighbor : Neighborhood){
-				if (toTake.contains(neighbor)){
-					Permutation neighbor1 = toTake.get(toTake.indexOf(neighbor));
-					//if (neighbor1.getDist() >= p.getDist()){
-					if (neighbor1.getDist() > p.getDist()){
-						neighbor1.setDescendents(p);
-						//if (!neighbor1.hasDescendent){
-						//	neighbor1.setDescendent(p);
-						//}
-					}
-				}
-			}
-
-		}
-		
-		//System.out.println("***");
-		//System.out.println(generatePermuUnderConstraints(n));
-		
-		System.out.println("***");
-		minimumsLocaux = new ArrayList<Permutation>();
-		for (Permutation p: toTake){
-			if (!p.hasDescendent()){
-				minimumsLocaux.add(p);
-			}	
-		}
-		System.out.println("minimumsLocaux.size() "+minimumsLocaux.size());
-		for (Permutation p: minimumsLocaux){
-			System.out.println("*"+ minimumsLocaux.indexOf(p)+ " "+ p + " " + p.getDist() + "  ("+p.getSumAscendence()+" ascendents)");
-			
-			/*Neighborhood = generateNeighborhoodCirc(p);
-			//System.out.println("Neighborhood.size() "+Neighborhood.size());
-			for (Permutation neighbor : Neighborhood){
-				Permutation neighbor1 = toTake.get(toTake.indexOf(neighbor));
-				System.out.println("   "+ neighbor1 + " " + neighbor1.getDist());
-			}*/
-		}
-		
-		int[][] tabSaddleHeight = new int [minimumsLocaux.size()][minimumsLocaux.size()];
-		for(int i1 = 0; i1< minimumsLocaux.size(); i1++){
-			for(int i2 = 0; i2< minimumsLocaux.size(); i2++){
-				tabSaddleHeight[i1][i2] = 999999;
-			}
-		}
-		
-		System.out.println("saddle height");
-		for(int i1 = 0; i1< minimumsLocaux.size(); i1++){
-			Permutation m1 = minimumsLocaux.get(i1);
-			for(int i2 = i1 +1; i2< minimumsLocaux.size(); i2++){
-				Permutation m2 = minimumsLocaux.get(i2);
-				//System.out.println(" "+i1+ " " + m1 + " ("+ m1.getDist() + ") -> "+i2 + " " + m2 + " (" + m2.getDist() + ") = ???"  );
-				if (generateNeighborhoodCirc(m1).contains(m2)){
-					System.out.println(" "+i1+ " " + m1 + " ("+ m1.getDist() + ") -> "+i2 + " " + m2 + " (" + m2.getDist() + ") = direct");
-					tabSaddleHeight[i1][i2] = Math.min(m1.getDist(),m2.getDist());
-					tabSaddleHeight[i2][i1] = tabSaddleHeight[i1][i2];
-				}else{
-					//System.out.println("not in neighborhood");
-					for(int i = 0; i< toTake.size(); i++){
-						Permutation p1 = toTake.get(i);
-						if (p1.hasDescendent()){
-							if (p1.getFinalDescendents().contains(m1) && p1.getFinalDescendents().contains(m2)){
-								System.out.println(" "+i1+ " " + m1 + " ("+ m1.getDist() + ") -> "+i2 + " " + m2 + " (" + m2.getDist() + ") = " + p1.getDist());
-								tabSaddleHeight[i1][i2] = p1.getDist();
-								tabSaddleHeight[i2][i1] = tabSaddleHeight[i1][i2];
-								i = toTake.size() + 5;
-							}
-						}
-					}
-				}
-			}
-		}
-		
-		for(int i1 = 0; i1< minimumsLocaux.size(); i1++){
-			for(int i2 = i1 + 1; i2< minimumsLocaux.size(); i2++){
-				System.out.println(" " + i1 + " ("+ minimumsLocaux.get(i1).getDist() + ") -> " + i2 + " (" + minimumsLocaux.get(i2).getDist() + ") = " + tabSaddleHeight[i1][i2]);
-			}
-		}
-		
-		for (int k =0; k < minimumsLocaux.size(); k++){
-			for(int i1 = 0; i1< minimumsLocaux.size(); i1++){
-				for(int i2 = 0; i2< minimumsLocaux.size(); i2++){
-					if (i1 != i2){
-						if (tabSaddleHeight[i1][i2] > Math.max(tabSaddleHeight[i1][k],tabSaddleHeight[k][i2])){
-							tabSaddleHeight[i1][i2] = Math.max(tabSaddleHeight[i1][k],tabSaddleHeight[k][i2]);
-							tabSaddleHeight[i2][i1] = tabSaddleHeight[i1][i2];
-							System.out.println("update");
-						}
-					}
-				}
-			}
-		}
-		
-		for(int i1 = 0; i1< minimumsLocaux.size(); i1++){
-			for(int i2 = i1 + 1; i2< minimumsLocaux.size(); i2++){
-				System.out.println(" " + i1 + " ("+ minimumsLocaux.get(i1).getDist() + ") -> " + i2 + " (" + minimumsLocaux.get(i2).getDist() + ") = " + tabSaddleHeight[i1][i2]);
-			}
-		}
-		
-		
-	}
+	
 	
 	
 	private static Set<Permutation> generateNeighborhoodCirc(Permutation p) {
@@ -3474,7 +3342,7 @@ public class Kendalltau {
 		int iteration =0;
 		double resolution_exacte = 0.0;
 		boolean verboseSymbols = false;
-		boolean ECC_combined_with_MOT3_LUBC = true;
+		boolean ECC_combined_with_MOT3_LUBC = false;
 
 		n=myInstance.n;
 		//n=pickARandom(a).getSize();
@@ -3905,7 +3773,6 @@ public class Kendalltau {
 		thm_ECC_stats += thm_ECC_count;
 		thm_always_stats += thm_always_count;
 		//thm_major_3_0_stats += constraints_count;
-		thm_major_3_0_revised_count = constraints_count;//on l'utilise ensuite conjointement avec l'autre seulement si Betztler est applicable
 		//thm_MOT3_iterationAvg_stats += iteration;
 		
 		if (thm_MOT3_iterationMax_stats < iteration) thm_MOT3_iterationMax_stats = iteration;
@@ -4962,264 +4829,8 @@ public class Kendalltau {
 
 
 
-	//heuritique simulated annealing
-	//to complete
-	//excellente heuristique probabiliste - la plus efficace pour le moment
-	private static void heuristicSA_wConstraints(Instance myInstance, boolean verboseDetail, boolean verboseResult, int arg0, int arg1, double arg2, double arg3) {
-		HashSet<Permutation> SA = new HashSet<Permutation>();
-		Permutation pi = null;
-		Permutation nextPi=null;
-		int energie =0;
-		int deltaEnergie=0;
-		int nbRuns=arg0;//nb d'electrons
-		int nbMvts=arg1;//nb de mouvements permis
-		double temperature=arg2;
-		double rand=0;
-		double lambda=arg3;
-		DecimalFormat df = new DecimalFormat("#.##");
-		
-		Permutation pMin = null;
-		int eMin=999999999;
-		int globalEMin=999999999;
-		
-		//String text="";
-		int r1=0,r2=0,n=myInstance.n,temp=0,setSize=myInstance.m;
-		int[] a = new int[n];
-		
-		//int derniereIte=0;
-		
-		/*
-		tabC = new boolean [n][n];
-		for (int i = 1; i<= n; i++){
-			for (int j = 1; j<= n; j++){
-				tabC[i-1][j-1]=false;
-			}
-		}
-		
-		MOT3(A,false, false, true, false,999999);
-		 */
-		
-		//tabD = creationTabD(set1);
-		
-		//pi = createARandom(n);
-		pi = generatePermuUnderConstraints(myInstance);
-		
-		//add here module to write positions limits of elements
-		//ude tabC[][]
-		
-		if (verboseDetail) System.out.println("SA Details:");
-		for (int j=0; j< nbRuns;j++){
-			if (verboseDetail) System.out.println("Electron " + j);
-			if (verboseDetail) System.out.println("i \ttemp \tenergie");
-			temperature=arg2;
-			
-			energie  = pi.distanceToSetMatrix(myInstance.tabD);
-			eMin=999999999;
-			//derniereIte=0;
-			
-			for (int i =0; i < nbMvts;i++){
-				
-				//faire le randomize ici
-				//nextPi  = randomCMoves(pi,1);
-				r1= (int)(Math.random()*(n)); //0 <-> (n-1)
-				r2= (int)(Math.random()*(n)); //0 <-> (n-1)
-				
-				
-				//calculer deltaEnergie ici
-				//deltaEnergie = nextPi.distanceToSetMatrix(tabD) - energie;
-				if (r1 != r2){
-					if (r2 > r1){
-						//mvt-circulaire droite
-						temp=0;
-						for (int u=r1;u<r2;u++)
-							temp += myInstance.tabD[pi.getTab()[r2]-1][pi.getTab()[u]-1];
-						deltaEnergie= (- setSize*(r2-r1) + 2*temp);
-					}else{
-						//mvt-circulaire gauche
-						temp=0;
-						for (int u=r2+1;u<=r1;u++)
-							temp += myInstance.tabD[pi.getTab()[r2]-1][pi.getTab()[u]-1];
-						deltaEnergie= (setSize*(r1-r2) - 2*temp);
-						//deltaEnergie=99999999;
-					}
-				}else{
-					deltaEnergie=0;
-				}
-				
-
-
-				//desicion ici
-				if (deltaEnergie <= 0){
-					
-					//creation de la nouvelle permutation
-					//copie du tab
-					for (int u=0;u<n;u++){
-						a[u]=pi.getTab()[u];
-					}
-					//execution du mouvement
-					if (r1 != r2){
-						if (r2 > r1){
-							//mvt-circulaire droite
-							temp = a[r2];
-							for (int u =r2; u> r1; u--){
-								a[u]=a[u-1];
-							}
-							a[r1] = temp;
-						}else{
-							//mvt-circulaire gauche
-							temp = a[r2];
-							for (int u =r2; u<r1; u++){
-								a[u]=a[u+1]; 
-							}
-							a[r1] = temp;
-						}
-					}
-					nextPi = new Permutation(a);
-					
-					
-					
-					
-					pi = nextPi;
-					energie=energie+ deltaEnergie;
-					if (verboseDetail) System.out.println(i + "\t" + df.format(temperature) + "\t" + energie);
-					
-					//affichage
-					/*text="";
-					for (int k =0; k < (energie-2035);k++){
-						text+="|";
-					}
-					System.out.println(i +": "+text);*/
-					//System.out.println(i +": "+(energie-2035) + "  t=" + temperature);
-					
-					if (energie < eMin){
-						eMin = energie;
-						pMin =pi;
-						//derniereIte=i;
-						if (eMin < globalEMin) {
-							globalEMin=eMin;
-							SA.clear();
-						}
-					}
-				}else{
-					rand = Math.random();
-					if (rand < Math.exp(-deltaEnergie/temperature)){
-						
-						//creation de la nouvelle permutation
-						//copie du tab
-						for (int u=0;u<n;u++){
-							a[u]=pi.getTab()[u];
-						}
-						//execution du mouvement
-						if (r1 != r2){
-							if (r2 > r1){
-								//mvt-circulaire droite
-								temp = a[r2];
-								for (int u =r2; u> r1; u--){
-									a[u]=a[u-1];
-								}
-								a[r1] = temp;
-							}else{
-								//mvt-circulaire gauche
-								temp = a[r2];
-								for (int u =r2; u<r1; u++){
-									a[u]=a[u+1]; 
-								}
-								a[r1] = temp;
-							}
-						}
-						nextPi = new Permutation(a);
-						
-						
-						
-						
-						pi = nextPi;
-						energie=energie+ deltaEnergie;
-						if (verboseDetail) System.out.println(i + "\t" + df.format(temperature) + "\t" + energie);
-						
-						//affichage
-						/*text="";
-						for (int k =0; k < (energie-2035);k++){
-							text+="|";
-						}
-						System.out.println(i +": "+text);*/
-						//System.out.println(i +": n "+(energie-2035) + "  t=" + temperature);
-					}else{
-						//rien
-					}
-				}
-				temperature *= lambda;
-			}
-			
-			if (energie > eMin){
-				pi = pMin;
-				energie=eMin;
-				//System.out.println("boom!");
-			}
-			//System.out.println(energie +" "+derniereIte);
-			//dernieresIterations.add(derniereIte);
-			
-			if (energie == globalEMin) SA.add(pi);
-			//SA.add(pi);
-		}
-		
-		if (verboseResult) System.out.println("Simulated Annealing: eMin= " + globalEMin);
-		
-	}
 	
 	
-	//creation de la matrice de distance pour l'ensemble passe en parametre
-	private static int[][] creationTabD(Set<Permutation> a) {
-		// TODO Auto-generated method stub
-		int n,aDroite,nombre;
-		Set<Integer> Reste = new TreeSet<Integer>();
-		n = pickARandom(a).getSize();
-		int[][] tableauD = new int[n][n];
-		//nouvelle facon ~|A|n2
-		for (Permutation p: a){
-			Reste.clear();
-			for (int i=1;i<=n;i++){
-				Reste.add(i);
-			}
-			for (int i=0;i<n;i++){
-				nombre = p.getTab()[i];
-				Reste.remove(nombre);
-				for (Integer ii : Reste){
-					tableauD[ii-1][nombre-1]++;
-				}
-			}
-		}
-		
-		/*
-		//ancienne facon ~|A|n3
-		for (int i=1;i<=n;i++){
-			for (int j=1; j<=n;j++){
-				if (i != j){
-					//aGauche=0;
-					aDroite=0;
-					for (Permutation p: a){
-						if (p.getPosition(j) < p.getPosition(i)){
-							//aGauche++;
-						}
-						else{
-							aDroite++;
-						}
-					}
-					
-					//optimisation elagage arbre
-					tableauD[j-1][i-1]=aDroite;
-					//fin optim
-				}
-				
-			}
-			
-			
-		}*/
-		
-		return tableauD;
-	}
-
-
-
 	
 
 
@@ -5267,401 +4878,8 @@ public class Kendalltau {
 		}
 	}
 	
-	//cree l'ensemble Sn: ensemble de toutes les permutations possibles de n
-		public static void creerSnUnderConstraints (Instance myInstance){
-			SnUnderConstraints = new HashSet<Permutation>();
-			
-			Set<Integer> nombres = new HashSet<Integer>();
-			for (int i=1; i<=myInstance.n;i++)
-				nombres.add(i);
-			
-			List<Integer> permuEnCours = new ArrayList<Integer>();
-
-			recuSnUnderConstraints(myInstance, permuEnCours, nombres, myInstance.n);
-			
-		}
-		
-		//fonction recurssive au coeur de la methode creerSn, elle aide a batir Sn
-		public static void recuSnUnderConstraints(Instance myInstance, List<Integer> permuEnCours, Set<Integer> nombres, int n){
-			int[] a;
-			Permutation pi;
-			Set<Integer> nombres2;
-			List<Integer> permuEnCours2;
-			boolean permissionContraintes = true;
-			if (n == 0){
-				a = new int[permuEnCours.size()];
-				for (int j=0; j<permuEnCours.size();j++ )
-					a[j]= permuEnCours.get(j);
-				
-				pi = new Permutation(a);
-				SnUnderConstraints.add(pi);
-			}
-			else{
-				for(int i: nombres){
-					permissionContraintes = true;
-					
-					for(int j: nombres){
-						if (i != j){
-							if (myInstance.tabC[j-1][i-1]){
-								permissionContraintes = false;
-							}
-						}
-					}
-
-					
-					if (permissionContraintes){
-						nombres2 = new HashSet<Integer>();
-						permuEnCours2 = new ArrayList<Integer>();
-						
-						copyIntSet(nombres,nombres2);
-						copyIntList(permuEnCours,permuEnCours2);
-						
-						permuEnCours2.add(i);
-						nombres2.remove(i);
-						recuSnUnderConstraints(myInstance, permuEnCours2, nombres2, n-1);
-					}
-				}
-			}
-		}
-		
-		
-		//cree l'ensemble Sn: ensemble de toutes les permutations possibles de n
-	public static Permutation generatePermuUnderConstraints (Instance myInstance){
-		SnUnderConstraints = new HashSet<Permutation>();
-		
-		Set<Integer> nombres = new HashSet<Integer>();
-		for (int i=1; i<=myInstance.n;i++)
-			nombres.add(i);
-		
-		List<Integer> permuEnCours = new ArrayList<Integer>();
-
-		return recuPermuUnderConstraints(myInstance,permuEnCours, nombres, myInstance.n);
-		
-	}
-	
-	//fonction recurssive au coeur de la methode creerSn, elle aide a batir Sn
-	public static Permutation recuPermuUnderConstraints(Instance myInstance,List<Integer> permuEnCours, Set<Integer> nombres, int n){
-		int[] a;
-		Permutation pi;
-		Set<Integer> nombres2;
-		List<Integer> permuEnCours2;
-		boolean permissionContraintes = true;
-		if (n == 0){
-			a = new int[permuEnCours.size()];
-			for (int j=0; j<permuEnCours.size();j++ )
-				a[j]= permuEnCours.get(j);
-			
-			pi = new Permutation(a);
-			return pi;
-		}
-		else{
-			permissionContraintes = false;
-			int i = 0;
-			while (!permissionContraintes){	
-				//for(int i: nombres)
-				permissionContraintes = true;
-				i = pickARandomInt(nombres);
-				for(int j: nombres){
-					if (i != j){
-						if (myInstance.tabC[j-1][i-1]){
-							permissionContraintes = false;
-						}
-					}
-				}
-				
-			}
-				
-			nombres2 = new HashSet<Integer>();
-			permuEnCours2 = new ArrayList<Integer>();
-			
-			copyIntSet(nombres,nombres2);
-			copyIntList(permuEnCours,permuEnCours2);
-			
-			permuEnCours2.add(i);
-			nombres2.remove(i);
-			return  recuPermuUnderConstraints(myInstance, permuEnCours2, nombres2, n-1);
-			
-		}
-	}
-
-	/*public static void creerTabD ( Set<Permutation> a){
-		int n;//ordre des permutations
-		n=pickARandom(a).getSize();
-		tabD = new int [n][n];
-		int aGauche=0,aDroite=0;
-		for (int i=1;i<=n;i++){
-			for (int j=1; j<=n;j++){
-				if (i != j){
-					aGauche=0;
-					aDroite=0;
-					for (Permutation p: a){
-						if (p.getPosition(j) < p.getPosition(i)){
-							aGauche++;
-						}
-						else{
-							aDroite++;
-						}
-					}
-					tabD[j-1][i-1]=aDroite;
-				}
-			}	
-		}
-		
-	}*/
-	
-	
-	//stats pour article
-	public static void statistiquesArticle (int m, int n, int iterations, int maxM){
-		//NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
-		//DecimalFormat df = (DecimalFormat)nf;
-		DecimalFormat df = new DecimalFormat("#.####");
-		
-		double nbPaires = (double)(n*(n-1)/2);
-		
-		if (m <= maxM){
-		
-		thm_always_stats = 0.0;
-		thm_major_1_0_stats = 0.0;
-		thm_major_2_0_stats = 0.0;
-		thm_major_3_0_stats = 0.0;
-		thm_betzler_stats = 0.0;
-		
-		thm_betzler_application = false;
-		thm_betzler_application_stats = 0.0;//combien de fois Betzler est applicable
-		thm_major_3_0_revised_count = 0.0;//stats de Major 3.0 sur les donnees Betzler-applicable
-		thm_betzler_revised_count = 0.0;//stats de Betzler sur les donnees Betzler-applicable
-		thm_major_3_0_revised_stats = 0.0;//stats de Major 3.0 sur les donnees Betzler-applicable
-		thm_betzler_revised_stats = 0.0;//stats de Betzler sur les donnees Betzler-applicable
-		thms_inclusion_revised_stats = 0.0;//stats sur le nombre de fois ou major est inclu dans betzler
-		
-		
-
-		for (int repetition=0; repetition< iterations; repetition++){
-			thm_betzler_application = false;
-			//creerA(false,m,n);
-			Instance myInstance = new Instance(m,n);
-			//thmBetzler(A);
-			thmBetzler_matriciel(myInstance, false, false, false);
-			//thmMajor(A, false, false, false);
-			//thmMajorEgalite_matriciel(A, false, false, false,true);
-			MOT3_LUBC(myInstance,false,false,false,true);//attention change
-			if (thm_betzler_application){
-				thm_major_3_0_revised_stats += thm_major_3_0_revised_count;
-				thm_betzler_revised_stats += thm_betzler_revised_count ;
-				if (testInclusionThmBetzlerDansThmCool(myInstance)) thms_inclusion_revised_stats++;
-			}
-		}
-		
-		thm_major_1_0_stats += thm_always_stats;
-		thm_major_2_0_stats += thm_major_1_0_stats;
-		thm_major_3_0_stats += thm_major_2_0_stats;
-		
-		thm_always_stats /= iterations;
-		thm_major_1_0_stats /= iterations;
-		thm_major_2_0_stats /= iterations;
-		thm_major_3_0_stats /= iterations;
-		thm_betzler_stats /= iterations;
-		
-		
-		thm_major_3_0_revised_stats /= thm_betzler_application_stats;//stats de Major 3.0 sur les donnees Betzler-applicable
-		thm_betzler_revised_stats /= thm_betzler_application_stats;//stats de Betzler sur les donnees Betzler-applicable
-		thms_inclusion_revised_stats /= thm_betzler_application_stats;//stats sur le nombre de fois ou major est inclu dans betzler
-		
-		thm_betzler_application_stats /= iterations;//combien de fois Betzler est applicable en %
-
-
-		//pour avoir les statistiques de resolution en poucentage des paires
-		thm_always_stats /= nbPaires;
-		thm_major_1_0_stats /= nbPaires;
-		thm_major_2_0_stats /= nbPaires;
-		thm_major_3_0_stats /= nbPaires;
-		thm_betzler_stats /= nbPaires;
-		thm_major_3_0_revised_stats /= nbPaires;
-		thm_betzler_revised_stats /= nbPaires;
-		
-		
-		
-		/*System.out.println("Statistiques thm cool pour m="+m+", n="+n+" et interations="+iterations);
-		//System.out.println("thm_tjrs_count: " + thm_tjrs_stats);
-		//System.out.println("thm_cool_count: " + thm_cool_stats);
-		System.out.println("number of pairs of elements: " + (n*(n-1)/2));
-		System.out.println("");*/
-		//System.out.println(m + "\t" + thm_tjrs_stats + "\t" + thm_cool_stats);
-		//System.out.println(m + "\t" + df.format(thm_tjrs_stats) + "\t" + df.format(thm_cool_stats));
-		//System.out.println(m + "\t" + df.format(thm_tjrs_stats) + "\t" + df.format(thm_cool_stats)+ "\t" + df.format(fermeture_stats));
-		//System.out.println(m + "\t" + df.format(thm_tjrs_stats) + "\t" + df.format(thm_cool_stats)+ "\t" + df.format(thm_cool_extend_stats)+ "\t" + df.format(fermeture_stats) + "\t" + df.format(resolution_stats));
-		System.out.println(m + "\t\t" + df.format(thm_always_stats) + "\t\t" + df.format(thm_major_1_0_stats)+ "\t\t" +
-				df.format(thm_major_2_0_stats)+ "\t\t" + df.format(thm_major_3_0_stats) + "\t\t" + df.format(thm_betzler_stats)
-				+ "\t\t" + df.format(thm_betzler_application_stats)+ "\t\t" + df.format(thm_major_3_0_revised_stats) 
-				+ "\t\t" + df.format(thm_betzler_revised_stats) + "\t\t" + df.format(thms_inclusion_revised_stats));
-
-		}else{
-			System.out.println(m + "\t\t" + "n/a" + "\t\t" + "n/a"+ "\t\t" +
-					"n/a" + "\t\t" + "n/a" + "\t\t" + "n/a"
-					+ "\t\t" + "n/a" + "\t\t" + "n/a" 
-					+ "\t\t" + "n/a" + "\t\t" + "n/a");
-		}
-		
-	}
-	//fin stats pour article
-	
-	
 	
 
-	
-	
-		
-	//stats pour article journal
-	public static void statistiquesArticleJournal (int m, int n, int iterations, int maxM, boolean egalite){
-		//NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
-		//DecimalFormat df = (DecimalFormat)nf;
-		DecimalFormat df = new DecimalFormat("#.####");
-		
-		double nbPaires = (double)(n*(n-1)/2);
-		
-		if (m <= maxM){
-		
-		thm_always_stats = 0.0;
-		thm_major_3_0_stats = 0.0;
-		thm_betzler_stats = 0.0;
-		thm_MOT3_iterationAvg_stats = 0.0;
-		thm_MOT3_iterationMax_stats = 0.0;
-		
-		thm_betzler_application = false;
-		thm_betzler_application_stats = 0.0;//combien de fois Betzler est applicable
-		thm_major_3_0_revised_count = 0.0;//stats de Major 3.0 sur les donnees Betzler-applicable
-		thm_betzler_revised_count = 0.0;//stats de Betzler sur les donnees Betzler-applicable
-		thm_major_3_0_revised_stats = 0.0;//stats de Major 3.0 sur les donnees Betzler-applicable
-		thm_betzler_revised_stats = 0.0;//stats de Betzler sur les donnees Betzler-applicable
-		thms_inclusion_revised_stats = 0.0;//stats sur le nombre de fois ou major est inclu dans betzler
-		
-
-		for (int repetition=0; repetition< iterations; repetition++){
-			Instance myInstance = new Instance(m,n);
-			//MOT3(null,A, false, false, false, egalite,-1);//*modified inst
-			MOT3_LUBC(myInstance, false, false, false, egalite);//*modified inst
-			
-			thm_betzler_application = false;
-			thmBetzler_matriciel(myInstance, false, false, false);
-			if (thm_betzler_application){
-				thm_major_3_0_revised_stats += thm_major_3_0_revised_count;
-				if (testInclusionThmBetzlerDansThmCool(myInstance)) thms_inclusion_revised_stats++;
-			}
-		}
-		
-		thm_always_stats /= iterations;//stats par cas
-		thm_major_3_0_stats /= iterations;
-		thm_betzler_stats /= iterations;
-		thm_MOT3_iterationAvg_stats  /= iterations;
-		
-		thm_major_3_0_revised_stats /= thm_betzler_application_stats;//stats de Major 3.0 sur les donnees Betzler-applicable
-		thm_betzler_revised_stats /= thm_betzler_application_stats;//stats de Betzler sur les donnees Betzler-applicable
-		thms_inclusion_revised_stats /= thm_betzler_application_stats;//stats sur le nombre de fois ou major est inclu dans betzler
-		thm_betzler_application_stats /= iterations;//combien de fois Betzler est applicable en %
-		
-		//pour avoir les statistiques de resolution en poucentage des paires
-		thm_always_stats /= nbPaires;
-		thm_major_3_0_stats /= nbPaires;
-		thm_betzler_stats /= nbPaires;
-		thm_major_3_0_revised_stats /= nbPaires;
-		thm_betzler_revised_stats /= nbPaires;
-		
-			if (thm_betzler_application_stats >= 0.0001){
-				System.out.println(m + "\t\t" + df.format(thm_always_stats) + "\t\t" + df.format(thm_major_3_0_stats) + "\t\t" + df.format(thm_betzler_stats)
-					+ "\t\t" + df.format(thm_betzler_application_stats)+ "\t\t" + df.format(thm_major_3_0_revised_stats) 
-					+ "\t\t" + df.format(thm_betzler_revised_stats) + "\t\t" + df.format(thms_inclusion_revised_stats)
-					+ "\t\t" + df.format(thm_MOT3_iterationAvg_stats) + "\t\t" + df.format(thm_MOT3_iterationMax_stats));
-			}else{
-				System.out.println(m + "\t\t" + df.format(thm_always_stats) + "\t\t" + df.format(thm_major_3_0_stats) + "\t\t" + df.format(thm_betzler_stats)
-						+ "\t\t" + df.format(thm_betzler_application_stats)+ "\t\t" + "n/a" 
-						+ "\t\t" + "n/a" + "\t\t" + "n/a"
-						+ "\t\t" + df.format(thm_MOT3_iterationAvg_stats) + "\t\t" + df.format(thm_MOT3_iterationMax_stats));
-			}
-
-		}else{
-			System.out.println(m + "\t\t" + "n/a" + "\t\t" + "n/a" + "\t\t" + "n/a"
-					+ "\t\t" + "n/a" + "\t\t" + "n/a" 
-					+ "\t\t" + "n/a" + "\t\t" + "n/a" 
-					+ "\t\t" + "n/a" + "\t\t" + "n/a");
-		}
-
-	}
-
-	
-	//stats pour article journal sans Betzler
-	public static void lanceurStatsArticleJournal2 (int n, int repet, int maxM, boolean egalite){
-		
-	    System.out.println("Statistiques thm always, Major 3.0 pour m variable, n="+n+" et iterations="+repet);
-		System.out.println("number of pairs of elements: " + (n*(n-1)/2));
-		System.out.println("");
-		
-		
-		System.out.println("m" + "\t\t" + "always" + "\t\t" + "major");
-		System.out.println(" " + "\t\t" + " " + "\t\t" + "3.0");
-		
-		
-	    for (int i =3; i<= 15; i++){
-			//statistiquesThmCool
-		    statistiquesArticleJournal2(i,n,repet, maxM, egalite);
-		    //mesure du temp
-	    }
-	    statistiquesArticleJournal2(20,n,repet, maxM, egalite);
-	    statistiquesArticleJournal2(25,n,repet, maxM, egalite);
-	    statistiquesArticleJournal2(30,n,repet, maxM, egalite);
-	    statistiquesArticleJournal2(35,n,repet, maxM, egalite);
-	    statistiquesArticleJournal2(40,n,repet, maxM, egalite);
-	    statistiquesArticleJournal2(45,n,repet, maxM, egalite);
-	    statistiquesArticleJournal2(50,n,repet, maxM, egalite);
-	    
-	  //mesure du temp
-  		lEndTime = new Date().getTime(); //end time
-  	    difference = (lEndTime - lStartTime); //check different
-  	    System.out.println("Temps pour execution: " +(difference/60000) + " minutes " + ((difference % 60000)/1000) + " secondes " + (difference % 1000) + " millisecondes");
-  	    lStartTime = new Date().getTime();
-	    
-	}
-	//stats pour article
-	
-	
-	//stats pour article journal
-	public static void statistiquesArticleJournal2 (int m, int n, int iterations, int maxM, boolean egalite){
-		//NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
-		//DecimalFormat df = (DecimalFormat)nf;
-		DecimalFormat df = new DecimalFormat("#.####");
-		
-		double nbPaires = (double)(n*(n-1)/2);
-		
-		if (m <= maxM){
-		
-		thm_always_stats = 0.0;
-		thm_major_3_0_stats = 0.0;
-
-		
-
-		for (int repetition=0; repetition< iterations; repetition++){
-			Instance myInstance = new Instance(m,n); 
-			//MOT3(null,A, false, false, false, egalite,-1);//*modified inst
-			MOT3_LUBC(myInstance, false, false, false, egalite);//*modified inst
-		}
-		
-		thm_always_stats /= iterations;
-		thm_major_3_0_stats /= iterations;
-
-		
-		//pour avoir les statistiques de resolution en poucentage des paires
-		thm_always_stats /= nbPaires;
-		thm_major_3_0_stats /= nbPaires;
-
-
-		System.out.println(m + "\t\t" + df.format(thm_always_stats) + "\t\t" + df.format(thm_major_3_0_stats));
-
-		}else{
-			System.out.println(m + "\t\t" + "n/a" + "\t\t" + "n/a");
-		}
-
-	}
-
-	
 	
 	//statistics for IWOCA2017 article
 	public static void statsLauncherIWOCA2017 (int n, int nbInstances, int maxM, boolean egalite){
@@ -5803,448 +5021,7 @@ public class Kendalltau {
 	}
 
 			
-	
-	
-	/*
-	//etude pour trouver un contre-exemple
-	public static void etudeInclusionThmBetzlerDansThmCool (){
-		boolean inclusion = false;
-		System.out.println("Etude inclusion Betzler ds Cool");
-		for (int i=1; i<10000; i++){
-			//creerA(false,4,8);
-			Instance myInstance = new Instance(4,8);
-			thmBetzler(myInstance);	
-			thmCool_avecFermeture(A);
-			inclusion = testInclusionThmBetzlerDansThmCool();
-			System.out.print(inclusion);
-			if (!inclusion){
-				System.out.println("***********Contre-exemple************");
-				printA();
-			}
-		}
-	}*/
-	
-	//methode qui teste si les contraintes trouvees par le thm de betzler se retrouvent dans les contraintes trouvees par le thm cool
-	public static boolean testInclusionThmBetzlerDansThmCool (Instance myInstance){
-		boolean silencieux = true;
-		boolean inclusion = true;
-		
-		if (!silencieux) System.out.println();
-		if (!silencieux) System.out.println(" **Betzler vs Thm Cool**");
-		
-		int n=myInstance.n;
-		
-		//matriciel
-		for (int i = 1; i<= n; i++){
-			for (int j = 1; j<= n; j++){
-				if (tabContraintesBetzler[i-1][j-1] && (!myInstance.tabC[i-1][j-1])){
-					inclusion = false;
-					if (!silencieux) System.out.println("contrainte non-trouvee: (" + i + "," + j + ")");
-				}
-			}
-		}
-		
-		/*
-		for (IntPair p : contraintesBetzler){
-			//rapide - matriciel
-			if (!tabC[p.x-1][p.y-1]){
-				if (!silencieux) System.out.println("contrainte non-trouvee:" + p);
-				inclusion = false;
-			}
-			//normal - ensembles
-			//if (!contraintesCool.contains(p)){
-			//	if (!silencieux) System.out.println("contrainte non-trouvee:" + p);
-			//	inclusion = false;
-			//}
-		}*/
-		
-		
-		if (!silencieux) System.out.println("Inclusion contraintes Betzler ds contraintes Cool : " + inclusion);
-		if (!silencieux) System.out.println();
-		return inclusion;
-	}
-	
-	//thm Betzler avec non-dirty candidate
-	public static void thmBetzler (Instance myInstance){
-		
-		//declarations et initialisations des variables
-		int n;//ordre des permutations
-		//List<IntPair> contraintes = new ArrayList<IntPair>(); //liste des contraintes
-		List<Integer> NonDirtyCandidates= new ArrayList<Integer>(); //liste des contraintes
-		
-		n=myInstance.n;//taille des permutations
-		double m = (double)myInstance.m; //nombre de permutations
-		double nbPermu1avant2 = 0.0;
-		//creerTabD(a);//creation de la table tabD qui indique avec 'tabD[i][j]' combien de fois 'i' est a droite de 'j'
-		
-		boolean silencieux = false;//si on veux avoir les calculs affiches
-		boolean affichage_paires = false;//si on veux avoir les paires des thms affichees pour le probleme courant
-		boolean affichage_stats = true;//si on veux avoir les stats des thms affichees pour le probleme courant
-		
-		boolean nonDirtyCandidate = false;
-		boolean proceed = true;
-		int thm_betzler_iteration=0;
-		int thm_betzler_count = 0;
-		int nonDirtyPairs =0;
-		tabContraintesBetzler = new boolean[n][n];
-		//fin des declarations et initialisations des variables
-		
 
-		
-		//affichage debut
-		if (!silencieux) System.out.println("");
-		if (!silencieux) System.out.println(" *** Evaluation du thm de Betzler ***");
-		if (!silencieux) System.out.println("");
-		
-		if (affichage_paires) System.out.println("");
-		if (affichage_paires) System.out.println(" **Betzler**");
-		//fin affichage debut
-		
-		
-		
-		//test vendredi
-		for (int element1 = 1; element1<=n; element1++){//on met toutes les contraintes a false, car aucune contrainte n'est connue au depart
-			for (int element2 = element1 + 1; element2<=n; element2++){
-				if (element2 != element1){
-					nbPermu1avant2 = (double)myInstance.tabD[element2-1][element1-1];
-					if ((nbPermu1avant2/m >= 0.75) || (nbPermu1avant2/m <= 0.25)){
-						nonDirtyPairs++;
-						//System.out.println("nonDirtyPair: "+ element1 + " " + element2);
-					}
-				}
-			}
-		}
-		System.out.println("#nonDirtyPair: " + nonDirtyPairs);
-		//fin test ven.
-		
-		
-		
-		//calcul
-		for (int element1 = 1; element1<=n; element1++){//on met toutes les contraintes a false, car aucune contrainte n'est connue au depart
-			for (int element2 = 1; element2<=n; element2++){
-				tabContraintesBetzler[element1-1][element2-1]=false;
-			}
-		}
-		while (proceed){
-			proceed = false;
-			thm_betzler_iteration++;
-			
-			for (int element1 = 1; element1<=n; element1++){//pour chaque element, on verifie s'il est un non-dirty candidate
-				nonDirtyCandidate = true;//on suppose que oui
-				for (int element2 = 1; element2<=n; element2++){//on teste avec chaque autre element
-					if (element2 != element1){
-						nbPermu1avant2 = (double)myInstance.tabD[element2-1][element1-1];
-						if ((nbPermu1avant2/m >= 0.75) || (nbPermu1avant2/m <= 0.25)){
-							//reste un nonDirtyCandidate
-						}else if ((tabContraintesBetzler[element1-1][element2-1]) || (tabContraintesBetzler[element2-1][element1-1])){
-							//reste un nonDirtyCandidate
-						}else{
-							nonDirtyCandidate = false;
-						}		
-					}
-				}//fin boucle 2
-				
-				if (nonDirtyCandidate && (!NonDirtyCandidates.contains(element1))){//it's a new non-dirty candidate
-					NonDirtyCandidates.add(element1);
-					if (!silencieux)  System.out.println("\t new non-dirty candidate: " + element1);
-					proceed = true; //because we found a non-dirty candidate, so we'll have to reapply the theorem on each side
-					for (int element2 = 1; element2<=n; element2++){//boucle 2
-						if ((element2 != element1) && (!tabContraintesBetzler[element1-1][element2-1])&& (!tabContraintesBetzler[element2-1][element1-1])){
-							if (myInstance.tabD[element1-1][element2-1] < myInstance.tabD[element2-1][element1-1]){//si element1 est maj avant element2
-								//contraintes.add(new IntPair(element1,element2));
-								tabContraintesBetzler[element1-1][element2-1]=true;
-								if (!silencieux)  System.out.println("\t Thm betzler("+thm_betzler_iteration+") :  ordre majoritaire respecte " + element1 + " " + element2);
-								if (affichage_paires) System.out.println("thm betzler("+thm_betzler_iteration+") " + element1 + ":" + element2);
-							}else{
-								//contraintes.add(new IntPair(element2,element1));
-								tabContraintesBetzler[element2-1][element1-1]=true;
-								if (!silencieux)  System.out.println("\t Thm betzler("+thm_betzler_iteration+") :  ordre majoritaire respecte " + element2 + " " + element1);
-								if (affichage_paires) System.out.println("thm betzler("+thm_betzler_iteration+") " + element2 + ":" + element1);
-							}	
-						}
-					}//fin boucle 2
-					//contraintes = fermeture_contraintes(contraintes,1,n,!silencieux,affichage_paires);
-
-				}
-			}//fin boucle 1
-			
-			//bloc fermeture transitive
-			for (int i = 1; i<=n; i++){//on met toutes les contraintes a false, car aucune contrainte n'est connue au depart
-				for (int j = 1; j<=n; j++){
-					for (int k = 1; k<=n; k++){
-						if ((i != j)&&(j != k)&&(i != k)){
-							if (tabContraintesBetzler[i-1][k-1] && tabContraintesBetzler[k-1][j-1] && !tabContraintesBetzler[i-1][j-1]){
-								tabContraintesBetzler[i-1][j-1] = true;
-								if (!silencieux)  System.out.println("\t fermeture :  ordre majoritaire respecte " + i + " " + j);
-								if (affichage_paires) System.out.println("fermeture" + i + ":" + j);
-							}
-						}
-					}
-				}
-			}
-			//fin bloc fermeture transitive
-		}
-		
-		
-		//fin calcul
-		
-		
-		
-		//nombre de contraintes trouvees
-		thm_betzler_count=0;
-		for (int element1 = 1; element1<=n; element1++){//on met toutes les contraintes a false, car aucune contrainte n'est connue au depart
-			for (int element2 = 1; element2<=n; element2++){
-				if (element2 != element1){
-					if (tabContraintesBetzler[element1-1][element2-1]){
-						thm_betzler_count++ ;
-						
-					}
-				}
-			}
-		}
-		//fin nombre de countraites trouvees
-		
-		
-		//coin pour les stats
-		thm_betzler_stats += thm_betzler_count;
-		if (thm_betzler_count!=0) thm_betzler_application_stats++;
-		if (thm_betzler_count!=0) thm_betzler_application = true;
-		thm_betzler_revised_count = thm_betzler_count;//on l'utilise ensuite conjointement avec l'autre seulement si Betzler est applicable
-		contraintesBetzler = new ArrayList<IntPair>();//pour test d'inclusion thms betzler ds Major Order Theorem
-		for (int element1 = 1; element1<=n; element1++){//on met toutes les contraintes a false, car aucune contrainte n'est connue au depart
-			for (int element2 = 1; element2<=n; element2++){
-				if (element2 != element1){
-					if (tabContraintesBetzler[element1-1][element2-1]){
-						contraintesBetzler.add(new IntPair(element1,element2));
-					}
-				}
-			}
-		}
-		//fin stats
-		
-		
-		//affichage du nombre de contraintes trouvees
-		if (affichage_stats) System.out.println("---");
-		if (affichage_stats) System.out.println("thm_betzler_count: " + thm_betzler_count);
-		if (affichage_stats) System.out.println("number of pairs of elements: " + (n*(n-1)/2));
-		if (affichage_stats) System.out.println("");
-		double resolution_exacte = 100.0*(thm_betzler_count)/(n*(n-1)/2);
-		resolution_stats +=resolution_exacte;
-		if (affichage_stats) System.out.println("resolution exacte: " + (thm_betzler_count)+ "/" + (n*(n-1)/2)
-				+ " ("+df.format(resolution_exacte)+"%)");
-		if (affichage_stats) System.out.println("");
-		//fin affichage
-		
-		
-	}
-	
-	
-	
-	
-	
-	
-	//thm Betzler avec non-dirty candidate
-	public static void thmBetzler_matriciel (Instance myInstance, boolean verboseDetails, boolean verbosePairs, boolean verboseStats){
-		int n;//ordre des permutations
-		
-		n=myInstance.n;
-		boolean listNonDirtyCandidates[] = new boolean[n];
-		
-		tabContraintesBetzler = new boolean [n][n];
-		for (int i = 1; i<= n; i++){
-			listNonDirtyCandidates[i-1]=false;
-			for (int j = 1; j<= n; j++){
-				tabContraintesBetzler[i-1][j-1]=false;
-			}
-		}
-		
-		double m = (double)myInstance.m;
-		double nbPermu1avant2 = 0.0;
-		//creerTabD(a);
-		
-		boolean silencieux = !verboseDetails;//si on veux avoir les calculs affiches
-		boolean affichage_paires = verbosePairs;//si on veux avoir les paires des thms affichees pour le probleme courant
-		boolean affichage_stats = verboseStats;//si on veux avoir les stats des thms affichees pour le probleme courant
-		
-		boolean nonDirtyCandidate = false;
-		boolean proceed = true;
-		int thm_betzler_iteration=0;
-
-		if (!silencieux) System.out.println("");
-		if (!silencieux) System.out.println(" *** Evaluation du thm de Betzler ***");
-		if (!silencieux) System.out.println("");
-		
-		if (affichage_paires) System.out.println("");
-		if (affichage_paires) System.out.println(" **Betzler**");
-		
-		int thm_betzler_count = 0;
-		
-		while (proceed){
-			proceed = false;
-			thm_betzler_iteration++;
-			
-			for (int element1 = 1; element1<=n; element1++){
-				nonDirtyCandidate = true;
-				for (int element2 = 1; element2<=n; element2++){//boucle 2
-					if (element2 != element1){
-						nbPermu1avant2 = (double)myInstance.tabD[element2-1][element1-1];
-						if ((nbPermu1avant2/m >= 0.75) || (nbPermu1avant2/m <= 0.25)){
-							//reste un nonDirtyCandidate
-						//}else if ((contraintes.contains(new IntPair(element1,element2))) || (contraintes.contains(new IntPair(element2,element1)))){
-						}else if (tabContraintesBetzler[element1-1][element2-1] || tabContraintesBetzler[element2-1][element1-1]){
-							//reste un nonDirtyCandidate
-						}else{
-							nonDirtyCandidate = false;
-						}		
-					}
-				}//fin boucle 2
-				
-				if (nonDirtyCandidate && (!listNonDirtyCandidates[element1-1])){//it's a new non-dirty candidate
-					listNonDirtyCandidates[element1-1]=true;
-					if (!silencieux)  System.out.println("\t new non-dirty candidate: " + element1);
-					proceed = true; //because we found a non-dirty candidate, so we'll have to reapply the theorem on each side
-					for (int element2 = 1; element2<=n; element2++){//boucle 2
-						if ((element2 != element1) && (!tabContraintesBetzler[element1-1][element2-1])&& (!tabContraintesBetzler[element2-1][element1-1])){
-							if (myInstance.tabD[element1-1][element2-1] < myInstance.tabD[element2-1][element1-1]){//si element1 est maj avant element2
-								tabContraintesBetzler[element1-1][element2-1] = true;
-								if (!silencieux)  System.out.println("\t Thm betzler("+thm_betzler_iteration+") :  ordre majoritaire respecte " + element1 + " " + element2);
-								if (affichage_paires) System.out.println("thm betzler("+thm_betzler_iteration+") " + element1 + ":" + element2);
-							}else{
-								tabContraintesBetzler[element2-1][element1-1] = true;
-								if (!silencieux)  System.out.println("\t Thm betzler("+thm_betzler_iteration+") :  ordre majoritaire respecte " + element2 + " " + element1);
-								if (affichage_paires) System.out.println("thm betzler("+thm_betzler_iteration+") " + element2 + ":" + element1);
-							}	
-						}
-					}//fin boucle 2
-					fermeture_contraintesBetzler_matriciel(1,n,!silencieux,affichage_paires);
-				}
-			}//fin boucle 1
-		}
-		
-		fermeture_contraintesBetzler_matriciel(1,n,!silencieux,affichage_paires);
-		thm_betzler_count=0;
-		for (int i = 1; i<= n; i++){
-			for (int j = 1; j<= n; j++){
-				if (tabContraintesBetzler[i-1][j-1]){
-					thm_betzler_count++;
-				}
-			}
-		}
-		
-		
-		thm_betzler_stats += thm_betzler_count;
-		if (thm_betzler_count!=0) thm_betzler_application_stats++;
-		if (thm_betzler_count!=0) thm_betzler_application = true;
-		if (thm_betzler_count!=0) thm_betzler_revised_stats += thm_betzler_count;//on l'utilise ensuite conjointement avec l'autre seulement si Betzler est applicable
-		
-		if (affichage_stats) System.out.println("---");
-		if (affichage_stats) System.out.println("thm_betzler_count: " + thm_betzler_count);
-		if (affichage_stats) System.out.println("number of pairs of elements: " + (n*(n-1)/2));
-		if (affichage_stats) System.out.println("");
-		double resolution_exacte = 100.0*(thm_betzler_count)/(n*(n-1)/2);
-		resolution_stats +=resolution_exacte;
-		if (affichage_stats) System.out.println("resolution exacte: " + (thm_betzler_count)+ "/" + (n*(n-1)/2)
-				+ " ("+df.format(resolution_exacte)+"%)");
-		if (affichage_stats) System.out.println("");
-		
-	}
-	
-	
-	//thm Betzler matriciel avec non-dirty candidate
-	//c'est un module pour rajoute des conrtaintes Betzler sur un probleme qui a deja des contraintes trouvees par d'autres methodes
-	public static int apply_thmBetzler_matriciel ( Instance myInstance, boolean verboseDetails, boolean verbosePairs, boolean verboseStats){
-		int n;//ordre des permutations
-		
-		n=myInstance.n;
-		boolean listNonDirtyCandidates[] = new boolean[n];
-		
-		for (int i = 1; i<= n; i++){
-			listNonDirtyCandidates[i-1]=false;
-		}
-		
-		double m = (double)myInstance.m;
-		double nbPermu1avant2 = 0.0;
-		//creerTabD(a);
-		
-		boolean silencieux = !verboseDetails;//si on veux avoir les calculs affiches
-		boolean affichage_paires = verbosePairs;//si on veux avoir les paires des thms affichees pour le probleme courant
-		boolean affichage_stats = verboseStats;//si on veux avoir les stats des thms affichees pour le probleme courant
-		
-		boolean nonDirtyCandidate = false;
-		boolean proceed = true;
-		int thm_betzler_iteration=0;
-
-		if (!silencieux) System.out.println("");
-		if (!silencieux) System.out.println(" *** Evaluation du thm de Betzler ***");
-		if (!silencieux) System.out.println("");
-		
-		if (affichage_paires) System.out.println("");
-		if (affichage_paires) System.out.println(" **Betzler**");
-		
-		int thm_betzler_count = 0;
-		
-		while (proceed){
-			proceed = false;
-			thm_betzler_iteration++;
-			
-			for (int element1 = 1; element1<=n; element1++){
-				nonDirtyCandidate = true;
-				for (int element2 = 1; element2<=n; element2++){//boucle 2
-					if (element2 != element1){
-						nbPermu1avant2 = (double)myInstance.tabD[element2-1][element1-1];
-						if ((nbPermu1avant2/m >= 0.75) || (nbPermu1avant2/m <= 0.25)){
-							//reste un nonDirtyCandidate
-						//}else if ((contraintes.contains(new IntPair(element1,element2))) || (contraintes.contains(new IntPair(element2,element1)))){
-						}else if (myInstance.tabC[element1-1][element2-1] || myInstance.tabC[element2-1][element1-1]){
-							//reste un nonDirtyCandidate
-						}else{
-							nonDirtyCandidate = false;
-						}		
-					}
-				}//fin boucle 2
-				
-				if (nonDirtyCandidate && (!listNonDirtyCandidates[element1-1])){//it's a new non-dirty candidate
-					listNonDirtyCandidates[element1-1]=true;
-					if (!silencieux)  System.out.println("\t new non-dirty candidate: " + element1);
-					proceed = true; //because we found a non-dirty candidate, so we'll have to reapply the theorem on each side
-					for (int element2 = 1; element2<=n; element2++){//boucle 2
-						if ((element2 != element1) && (!myInstance.tabC[element1-1][element2-1])&& (!myInstance.tabC[element2-1][element1-1])){
-							if (myInstance.tabD[element1-1][element2-1] < myInstance.tabD[element2-1][element1-1]){//si element1 est maj avant element2
-								myInstance.tabC[element1-1][element2-1] = true;
-								thm_betzler_count++;
-								if (!silencieux)  System.out.println("\t Thm betzler("+thm_betzler_iteration+") :  ordre majoritaire respecte " + element1 + " " + element2);
-								if (affichage_paires) System.out.println("thm betzler("+thm_betzler_iteration+") " + element1 + ":" + element2);
-							}else{
-								myInstance.tabC[element2-1][element1-1] = true;
-								thm_betzler_count++;
-								if (!silencieux)  System.out.println("\t Thm betzler("+thm_betzler_iteration+") :  ordre majoritaire respecte " + element2 + " " + element1);
-								if (affichage_paires) System.out.println("thm betzler("+thm_betzler_iteration+") " + element2 + ":" + element1);
-							}	
-						}
-					}//fin boucle 2
-					thm_betzler_count+=fermeture_contraintes_matriciel(myInstance, 1,n,!silencieux,affichage_paires);
-				}
-			}//fin boucle 1
-		}
-		
-		thm_betzler_count+=fermeture_contraintes_matriciel(myInstance, 1,n,!silencieux,affichage_paires);
-		
-		
-		if (affichage_stats) System.out.println("add thm_betzler_count: " + thm_betzler_count);
-		double resolution_exacte = 100.0*(thm_betzler_count)/(n*(n-1)/2);
-		if (affichage_stats) System.out.println("add resolution exacte: " + (thm_betzler_count)+ "/" + (n*(n-1)/2)
-				+ " ("+df.format(resolution_exacte)+"%)");
-		
-		return thm_betzler_count;
-		
-	}
-	
-	
-	
-	
-	
-	
-	
 	
 	//fermeture d'un ensemble de contraintes par transitivite
 	//methode naive implemente rapidement
@@ -6318,41 +5095,6 @@ public class Kendalltau {
 		return nouv;
 	}
 	
-	
-	//fermeture d'un ensemble de contraintes par transitivite
-	//methode naive implemente rapidement
-	public static int fermeture_contraintesBetzler_matriciel(int min, int max, boolean verboseDetails, boolean verbosePairs){
-		boolean amelioration = true;
-		int nouv = 0;
-		if (verboseDetails) System.out.println("");
-		if (verboseDetails) System.out.println("Fermeture des contraintes trouvees (add):");
-		while (amelioration){
-			amelioration = false;
-			for (int i = min; i <= max; i++){
-				for (int j = min; j <= max; j++){
-					for (int k = min; k <= max; k++){
-						if (!tabContraintesBetzler[i-1][j-1]){
-							if (tabContraintesBetzler[i-1][k-1] && tabContraintesBetzler[k-1][j-1]){
-								tabContraintesBetzler[i-1][j-1]=true;
-								amelioration = true;
-								nouv++;
-								if (verboseDetails) System.out.println("  "+i+":"+j);
-								if (verbosePairs) System.out.println("add fermeture "+i+":"+j);
-								if (tabContraintesBetzler[j-1][i-1]){
-									if (verboseDetails) System.out.println("attention! contrainte contradictoire");
-									if (verbosePairs) System.out.println("attention! contrainte contradictoire");
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		if (verboseDetails) System.out.println("");
-		return nouv;
-	}
-	
-
 	
 	
 	
@@ -6508,7 +5250,7 @@ public class Kendalltau {
 			if (verbose) System.out.println("Gap = "+ myInstance.getGap() + " ("+df.format(myInstance.getRelativeGap())+"%)");
 		}else{
 			if (verbose) System.out.println("BnB terminated correctly");
-			myInstance.decalreIsOptimal();
+			myInstance.declareIsOptimal();
 			if (verbose) System.out.println("Kemeny Optimal Score: " + myInstance.best_lower_bound);
 		}
 		
