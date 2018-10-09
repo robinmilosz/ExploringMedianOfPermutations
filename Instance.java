@@ -13,10 +13,11 @@ import java.util.Set;
 import java.util.TreeMap;
 
 public class Instance {
-	public Set<Permutation> A; //ensemble de depart
+	public List<Permutation> A; //ensemble de depart
 	
 	public int n;
 	public int m;
+	public int nbPairs;
 	
 	public int[][] tabD;//distance matrix ("right" table)
 	public boolean[][] tabC;//matrice de contraintes: tabC[i][j]=true == (i<j) ds contraintes
@@ -112,10 +113,10 @@ public class Instance {
 	//for elections names
 	public List<String> rankingCandidatesNames;
 	//public List<String> rankingNames;
-	
-	//constructeurs
+
+	//empty constructor, usually we call a read file method after
 	public  Instance(){
-		A = new HashSet<Permutation>();
+		A = new ArrayList<Permutation>();
 		
 		//beginningThinks();
 	}
@@ -125,6 +126,7 @@ public class Instance {
 		isSubInstance = false;
 		m = A.size();
 		n=pickARandom().getSize();
+		nbPairs = (n*(n-1))/2;
 		creerTabD();
 		SA_upper_bound = -1;
 		BestOfA_upper_bound = -1;
@@ -188,22 +190,77 @@ public class Instance {
 		avgDist_normalized = avgDist/(double)(n*(n-1)/2);
 	}
 
+	//constructor from a set of permutations
 	public  Instance(Set<Permutation> SetPermu){
-		A = new HashSet<Permutation>();
+		A = new ArrayList<Permutation>();
 		for (Permutation pi : SetPermu){
 			A.add(pi);
 		}
 
 		beginningThinks();
-	}	
-	
-	public  Instance(int nbPermu, int nbElements){
-		A = new HashSet<Permutation>();
-		
+	}
+
+	//constructor from a list of permutations
+	public  Instance(List<Permutation> SetPermu){
+		A = new ArrayList<Permutation>();
+		for (Permutation pi : SetPermu){
+			A.add(pi);
+		}
+
+		beginningThinks();
+	}
+
+	//not working
+	//Mallows model with dispertion parameter theta
+	public  Instance(int nbPermu, int nbElements, double theta){
+
+		A = new ArrayList<Permutation>();
+		nbPairs = nbElements*(nbElements-1)/2;
+		Permutation central = createARandom(nbElements);
+		int dist = 0;
+		double prob = 0.0;
+		double sum = 0.0;
+		double[] probabilities = new double[nbPairs+1];
+		System.out.println("probs");
+		for (int i=0; i<= nbPairs; i++){
+			probabilities[i]=Math.exp(-i*theta);
+			sum += Math.exp(-i*theta);
+			System.out.println(i+"\t"+probabilities[i]);
+		}
+		System.out.println("probs unif.");
+		for (int i=0; i<= nbPairs; i++){
+			probabilities[i]/=sum;
+			System.out.println(i+"\t"+probabilities[i]);
+		}
+		System.out.println("");
+
 		Permutation pi =  null;
 		while (A.size() < nbPermu){
 			pi = createARandom(nbElements);
-			if (!A.contains(pi)) A.add(pi);
+			//if (!A.contains(pi)) A.add(pi);
+			prob = Math.random();
+			dist = pi.distanceTo(central);
+			//System.out.println(dist + " "+ nbPairs);
+			//System.out.println(prob + " vs "+ probabilities[dist]);
+			if (prob < probabilities[dist]) {
+				A.add(pi);
+				System.out.println(A.size());
+			}
+
+		}
+
+		beginningThinks();
+	}
+
+	//random uniform model
+	public  Instance(int nbPermu, int nbElements){
+		A = new ArrayList<Permutation>();
+
+		Permutation pi =  null;
+		while (A.size() < nbPermu){
+			pi = createARandom(nbElements);
+			//if (!A.contains(pi)) A.add(pi);
+			A.add(pi);
 		}
 
 		beginningThinks();
@@ -211,66 +268,65 @@ public class Instance {
 	
 	
 	/*
-	 * exemple {[7,1,5,4,9,8,3,2,10,6],[6,8,4,10,5,7,1,2,9,3],[2,1,8,5,7,4,10,3,9,6]}
+	 * example {[7,1,5,4,9,8,3,2,10,6],[6,8,4,10,5,7,1,2,9,3],[2,1,8,5,7,4,10,3,9,6]}
 	 */
 	public Instance(String line){
 		char u;
-		int profondeur=0;
+		int depth=0;
 		String nombreString = "";
 		int[] a = null;
-		List<Integer> permuEnCours = null;
+		List<Integer> permutationInProgress = null;
 		Permutation pi;
 		
-		//A = new HashSet<Permutation>();
-		//a faire (format 1 et 2... puis save)
+		//A = new ArrayList<Permutation>();
 		if (line.length()!=0 ){
 			for (int i=0;i< line.length();i++){
 				u=line.charAt(i);
 				//System.out.println(u);
 				if (u == '{' || u == '['){
-					profondeur++;
-					if (profondeur ==1){
-						A = new HashSet<Permutation>();
-					}else if (profondeur ==2){
+					depth++;
+					if (depth ==1){
+						A = new ArrayList<Permutation>();
+					}else if (depth ==2){
 						pi=null;
-						permuEnCours= new ArrayList<Integer>();
+						permutationInProgress= new ArrayList<Integer>();
 						nombreString="";
 					}else
 						System.out.println("erreur de lecture");
 						
 				}
 				else if (u == '}' || u == ']'){
-					profondeur--;
-					if (profondeur ==0){
+					depth--;
+					if (depth ==0){
 						
 						
 						//Instance myInstance =new Instance(A);
 						beginningThinks();
 					
 						
-					}else if (profondeur ==1){
-						permuEnCours.add(Integer.parseInt(nombreString));
-						a = new int[permuEnCours.size()];
-						for (int j=0; j<permuEnCours.size();j++ )
-							a[j]= permuEnCours.get(j);
+					}else if (depth ==1){
+						permutationInProgress.add(Integer.parseInt(nombreString));
+						a = new int[permutationInProgress.size()];
+						for (int j=0; j<permutationInProgress.size();j++ )
+							a[j]= permutationInProgress.get(j);
 						pi = new Permutation(a);
 						A.add(pi);
-					}else if (profondeur ==2){
-						permuEnCours.add(Integer.parseInt(nombreString));
+					}else if (depth ==2){
+						permutationInProgress.add(Integer.parseInt(nombreString));
 					}else
 						System.out.println("erreur de lecture");
 				}
 				else if (u == ','){
-					if (profondeur== 2){
-						permuEnCours.add(Integer.parseInt(nombreString));
+					if (depth== 2){
+						permutationInProgress.add(Integer.parseInt(nombreString));
 						nombreString="";
 					}
 					else{
-						//rien
+						//nothing
 					}
 				}
 				else{
-					if (profondeur== 2){
+					if (depth== 2){
 						nombreString += u;
 					}
 				}
@@ -285,8 +341,6 @@ public class Instance {
 	
 	
 	public void creerTabD(){
-		//int n;//ordre des permutations
-		//n=pickARandom(A).getSize();
 		tabD = new int [n][n];
 		int aGauche=0,aDroite=0;
 		for (int i=1;i<=n;i++){
@@ -310,7 +364,6 @@ public class Instance {
 	}	
 	
 	public void printTabD(){
-		//demonstration du tabD (nombre d'apparition de j a droite de i)
 		System.out.println("tabD: ");
 		for (int i=0; i<n;i++){
 			for (int j=0; j<n;j++){
@@ -331,14 +384,14 @@ public class Instance {
 	}
 	
 	
-	//choisi une permuttation au hasard dans A
+	//pick a random permutations in the set of permutations
 	public Permutation pickARandom(){
 		Permutation k2 = null;
-		int num=0,compteur=0;
+		int num=0,count=0;
 		num = (int)(Math.random()*m+1);
 		for (Permutation k: A){
-			compteur++;
-			if (compteur == num){
+			count++;
+			if (count == num){
 				k2 =  new Permutation(k.getTab());
 				return k2;
 			}
@@ -347,14 +400,14 @@ public class Instance {
 		return k2;
 	}
 	
-	//choisi une permuttation au hasard dans M
+	//pick a random permutation in the set of medians
 	public Permutation pickARandomMedian(){
 		Permutation k2 = null;
-		int num=0,compteur=0;
+		int num=0,count=0;
 		num = (int)(Math.random()*Medians.size()+1);
 		for (Permutation k: Medians){
-			compteur++;
-			if (compteur == num){
+			count++;
+			if (count == num){
 				k2 =  new Permutation(k.getTab());
 				return k2;
 			}
@@ -363,19 +416,17 @@ public class Instance {
 		return k2;
 	}
 	
-	//creer une permuttation au hasard
+	//fisher-yates shuffle to create random uniform permutation
 	public Permutation createARandom(int n){
 		Permutation k2 = null;
 		int num=0,temp=0;
 		int a[] = new int[n];
-		
-		//enumerer
+
 		for (int i=1;i<=n;i++){
 			a[i-1]=i;
 		}
-		
-		//a verifier...
-		//brasser (Fisher-Yates shuffle)
+
+		//Fisher-Yates shuffle
 		for (int i=1;i<=n;i++){
 			num = (int)(Math.random()*i+1);
 			temp=a[num-1];
@@ -389,25 +440,15 @@ public class Instance {
 		return k2;
 	}
 		
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
 	
 	public void print(){
-		System.out.println("Set A (" + A.size() + ") :" );
+		System.out.println("MultiSet A (" + A.size() + ") :" );
 		for (Permutation p: A){
 			System.out.println(p);
 		}
 	}
-	//imprime l'ensemble de permutations M
+	//print set of medians
 	public void printM (int threshold ){
 		
 		
@@ -437,8 +478,8 @@ public class Instance {
 				//System.out.println(p.getCycles());
 			}
 		}else{
-			System.out.println("Plus de "+threshold+" medianes...(pas la peine de  tout imprimer)");
-			System.out.println("echantillon:");
+			System.out.println("More than "+threshold+" medians...(won't print everything)");
+			System.out.println("sample:");
 			System.out.println(pickARandomMedian());
 		}
 
@@ -450,32 +491,18 @@ public class Instance {
 		boolean appendMode = false;
 		int compteur =0;
 		
-		//traitement du dossier
+		//folder check
 		File f = new File(fichier);
 		if (!f.exists()) {
 			if (!f.getParentFile().exists())
 				f.getParentFile().mkdirs();
 			
 		} else{
-			//rien
+			//nothing
 		}
 		
-		
-		
-		
-		
-		
-		
-		
 
-		
-		
-		
-		
-		
-		
-		
-		//traitement du fichier
+		//file
 		try{
 			// Create file 
 			FileWriter fstream = new FileWriter(fichier,appendMode);//file access on append mode
@@ -578,7 +605,7 @@ public class Instance {
 		int MSTscore = MSTsolution.distanceToSetMatrix(tabD);
 		System.out.println("Writing Cplex solution into MST file (score="+MSTscore+")");
 		
-		//traitement du dossier
+		//folder check
 		File f = new File(fichier);
 		if (!f.exists()) {
 			if (!f.getParentFile().exists())
@@ -589,7 +616,7 @@ public class Instance {
 		}
 		
 		
-		//traitement du fichier
+		//file
 		try{
 			// Create file 
 			FileWriter fstream = new FileWriter(fichier,appendMode);//file access on append mode
@@ -662,18 +689,18 @@ public class Instance {
 	public void writeResultIntoFile(String fichier){
 		boolean appendMode = false;
 		
-		//traitement du dossier
+		//folder check
 		File f = new File(fichier);
 		if (!f.exists()) {
 			if (!f.getParentFile().exists())
 				f.getParentFile().mkdirs();
 			
 		} else{
-			//rien
+			//nothing
 		}
 		
 		
-		//traitement du fichier
+		//file
 		try{
 			// Create file 
 			FileWriter fstream = new FileWriter(fichier,appendMode);//file access on append mode
@@ -748,23 +775,23 @@ public class Instance {
 	
 	
 	
-	//imprime l'ensemble de permutations A
+	//printing the set of permutations
 	public String linearStringA (){
-		String resultat="{";
-		//affichage
+		String result="{";
+		//printing
 		for (Permutation p: A){
-			resultat = resultat + p.toString() + ",";
+			result = result + p.toString() + ",";
 		}
-		if (resultat.length() > 0)
-			resultat=resultat.substring(0, resultat.length()-1);
-		resultat+="}";
-		return resultat;
+		if (result.length() > 0)
+			result=result.substring(0, result.length()-1);
+		result+="}";
+		return result;
 	}
 	
 	
 	public void writeIntoFile(String fichier, boolean appendMode){
 		
-		//traitement du dossier
+		//folder check
 		File f = new File(fichier);
 		if (!f.exists()) {
 			if (!f.getParentFile().exists())
@@ -775,7 +802,7 @@ public class Instance {
 		}
 		
 		
-		//traitement du fichier
+		//working with file
 		try{
 			// Create file 
 			FileWriter fstream = new FileWriter(fichier,appendMode);//file access on append mode
@@ -785,7 +812,7 @@ public class Instance {
 			//out.write(linearStringA());
 			int count = 0;
 			String resultat="{";
-			//affichage
+			//printing
 			for (Permutation p: A){
 				count++;
 				if (count != m){
@@ -813,14 +840,14 @@ public class Instance {
 
 	public void writeElectionIntoFile(String fichier, boolean appendMode){
 		
-		//traitement du dossier
+		//folder check
 		File f = new File(fichier);
 		if (!f.exists()) {
 			if (!f.getParentFile().exists())
 				f.getParentFile().mkdirs();
 			
 		} else{
-			//rien
+			//nothing
 		}
 		
 		
@@ -856,9 +883,9 @@ public class Instance {
 	}
 	
 	//first call the constructor then this, in the main code
-	//has to be all in one line only for now (correct later)
+	//has to be all in one line only for now (to be correct eventually)
 	
-	//exemple {[7,1,5,4,9,8,3,2,10,6],[6,8,4,10,5,7,1,2,9,3],[2,1,8,5,7,4,10,3,9,6]}
+	//example {[7,1,5,4,9,8,3,2,10,6],[6,8,4,10,5,7,1,2,9,3],[2,1,8,5,7,4,10,3,9,6]}
 	//      001222222222222222222222112222222222222222222221122222222222222222222210
 	//        Ap                    p p                    p p                    p*
 	//           n n n n n n n n  n n   n n n  n n n n n n n   n n n n n n  n n n n
@@ -871,7 +898,7 @@ public class Instance {
 		List<Integer> permuEnCours = null;
 		Permutation pi;
 		
-		//lecture
+		//reading
         FileReader reader ;
         try{
         	reader = new FileReader(fichier);
@@ -887,13 +914,13 @@ public class Instance {
         				if (u == '{' || u == '['){
         					profondeur++;
         					if (profondeur ==1){
-        						A = new HashSet<Permutation>();
+        						A = new ArrayList<Permutation>();
         					}else if (profondeur ==2){
         						pi=null;
         						permuEnCours= new ArrayList<Integer>();
         						nombreString="";
         					}else
-        						System.out.println("erreur de lecture");
+        						System.out.println("lecture error");
         						
         				}
         				else if (u == '}' || u == ']'){
@@ -915,7 +942,7 @@ public class Instance {
         					}else if (profondeur ==2){
         						permuEnCours.add(Integer.parseInt(nombreString));
         					}else
-        						System.out.println("erreur de lecture");
+        						System.out.println("lecture error");
         				}
         				else if (u == ','){
         					if (profondeur== 2){
@@ -923,7 +950,7 @@ public class Instance {
         						nombreString="";
         					}
         					else{
-        						//rien
+        						//nothing
         					}
         				}
         				else{
@@ -940,11 +967,95 @@ public class Instance {
         	in.close();
         	
 	    } catch (FileNotFoundException e){
-	        System.out.println("Fichier "+ fichier +" n'a pas été trouvé");
+	        System.out.println("File "+ fichier +" not found");
 	    }
 	}
-	
-	
+
+	//first call the constructor then this, in the main code
+	// .soc
+	public void loadFromFilePrefLibFormat(String fichier){
+
+		int sizeOfPermutations = 0;
+		String[] candidatesNames= new String[10];
+		int candidatesCount = 0;
+		int step = 0;//0:number,1:list of candidates,2:stats,3:permutations
+		char u;
+		String nombreString = "";
+		int[] a = null;
+		List<Integer> permuEnCours = null;
+		Permutation pi;
+		boolean firstValue;
+		int permutationRepetition = 0;
+
+		//reading
+		FileReader reader ;
+		try{
+			reader = new FileReader(fichier);
+			Scanner in = new Scanner(reader);
+
+			A = new ArrayList<Permutation>();
+			while (in.hasNext()){
+				String line = in.nextLine();
+				if (line.length()!=0 ){
+
+
+					if (step==0){
+						sizeOfPermutations=Integer.parseInt(line);
+						step++;
+						candidatesNames = new String[sizeOfPermutations];
+					}else if (step == 1){
+						candidatesNames[candidatesCount] = line;
+						candidatesCount++;
+						if (candidatesCount == sizeOfPermutations){
+							step++;
+						}
+					}else if (step == 2){
+						//nothing
+						step++;
+					}else if (step == 3){
+						firstValue = true;
+						pi=null;
+						permuEnCours= new ArrayList<Integer>();
+						nombreString="";
+						for (int i=0;i< line.length();i++){
+							u=line.charAt(i);
+							if (u == ','){
+								if (firstValue){
+									permutationRepetition=Integer.parseInt(nombreString);
+									nombreString="";
+									firstValue = false;
+								}else{
+									permuEnCours.add(Integer.parseInt(nombreString));
+									nombreString="";
+								}
+
+							}else{
+								nombreString += u;
+							}
+						}
+						permuEnCours.add(Integer.parseInt(nombreString));
+						for (int i=0;i<permutationRepetition;i++){
+							a = new int[permuEnCours.size()];
+							for (int j=0; j<permuEnCours.size();j++ )
+								a[j]= permuEnCours.get(j);
+							pi = new Permutation(a);
+							A.add(pi);
+						}
+
+					}
+
+				}
+			}
+			beginningThinks();
+
+
+
+			in.close();
+
+		} catch (FileNotFoundException e){
+			System.out.println("File "+ fichier +" not found");
+		}
+	}
 	
 	//first call the constructor then this, in the main code
 	public void loadElectionFromFile(String fichier){
@@ -955,13 +1066,13 @@ public class Instance {
 		List<Integer> permuEnCours = null;
 		Permutation pi;
 		
-		//lecture
+		//reading
         FileReader reader ;
         try{
         	reader = new FileReader(fichier);
         	Scanner in = new Scanner(reader);
         	
-        	A = new HashSet<Permutation>();
+        	A = new ArrayList<Permutation>();
         	while (in.hasNext()){
         		String line = in.nextLine();
         		if (line.length()!=0 ){
@@ -992,12 +1103,11 @@ public class Instance {
         	in.close();
         	
 	    } catch (FileNotFoundException e){
-	        System.out.println("Fichier "+ fichier +" n'a pas été trouvé");
+	        System.out.println("File "+ fichier +" not found");
 	    }
 	}
 	
-	
-	//methode qui prends une election et qui la transforme en ensemble de permutations, a la betzler
+	//procedure that converts an election format into a set of permutations, with projection method
 	/*
 	 *  pomme>orange>banane>poire>toamte>broccoli>ananas>grenade>fraise
 	 *  poire>tomate>pamplemousse>orange>pomme>bleuet
@@ -1015,13 +1125,13 @@ public class Instance {
 	public void convertElectionsToPermutations(String fichier){
 		Map<String, Integer> candidats = new TreeMap<String, Integer>();
 		rankingCandidatesNames = new ArrayList<String>();
-		A = new HashSet<Permutation>();
+		A = new ArrayList<Permutation>();
 		int n =0;
 		int m =0;
 		char u;
 		String candidat ="";
 		boolean ok = false;
-		//lecture
+		//reading
         FileReader reader ;
         try{
         	reader = new FileReader(fichier);
@@ -1064,7 +1174,7 @@ public class Instance {
             in.close();
         
         }catch (FileNotFoundException e){
-    	    System.out.println("Fichier "+ fichier +" n'a pas Ã©tÃ© trouvÃ©");
+    	    System.out.println("File "+ fichier +" not found");
     	}
         
         if (ok){
@@ -1081,7 +1191,7 @@ public class Instance {
         	n = ID -1;
         	
         	
-        	//2e lecture
+        	//2nd lecture
             try{
             	reader = new FileReader(fichier);
             	Scanner in = new Scanner(reader);
@@ -1126,7 +1236,7 @@ public class Instance {
                 in.close();
             
             }catch (FileNotFoundException e){
-        	    System.out.println("Fichier "+ fichier +" n'a pas Ã©tÃ© trouvÃ©");
+        	    System.out.println("File "+ fichier +" not found");
         	}
         }
         
@@ -1211,11 +1321,11 @@ public class Instance {
 				trimmedMedians.add(p);
 			}
 			else if (distCurrent < best_upper_bound){
-				//rien
+				//nothing
 				System.out.println("error 23456843645");
 			}
 			else{
-				//rien
+				//nothing
 			}	
 			
 		}
@@ -1257,12 +1367,12 @@ public class Instance {
 	}
 	
 	//subInstance
-	//creation d'un ensemble de permutations a partir d'un sous-ensemble d'elements
-	public Instance creerSubInstance (int elements[]){//faire aussi a partir d'un set et d'un arraylist
+	//create a permutations set from a sub set of elements, by projections
+	public Instance creerSubInstance (int elements[]){
 		Instance subInstance = null;
 		
 		int sizeSubInstance = elements.length;
-		Set<Permutation> SubA = new HashSet<Permutation>();
+		List<Permutation> SubA = new ArrayList<Permutation>();
 		
 		int[] newTableSubPermu = new int[sizeSubInstance]; //0-->13, 1-->24,...
 		int[] newTableInvertSubPermu = new int[n];//0-->0,1-->0,...,12-->1,...,23-->2,...

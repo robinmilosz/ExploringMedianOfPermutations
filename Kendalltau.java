@@ -27,8 +27,9 @@ import java.util.TreeSet;
 //import java.util.BitSet;
 
 //import ilog.cplex.IloCplex;
-import ilog.concert.*;
-import ilog.cplex.*;
+
+//import ilog.concert.*; //CPLEXcheck
+//import ilog.cplex.*; //CPLEXcheck
 
 class IntPair {
 	  final int x;
@@ -68,7 +69,8 @@ public class Kendalltau {
 	static double fermeture_stats = 0.0;
 	static double thm_cool_extend_stats = 0.0;
 	static double resolution_stats = 0.0;
-	
+
+	static double thm_ECC_stats = 0.0;
 	static double thm_always_stats = 0.0;
 	static double thm_major_1_0_stats = 0.0;
 	static double thm_major_2_0_stats = 0.0;
@@ -173,9 +175,10 @@ public class Kendalltau {
 
 	    
 	    
-	    statsLauncherIWOCA2017 (10, 100000, 999, false);
+	    //statsLauncherIWOCA2017 (10, 1000, 999, false);
 	    //postIwocaStats();
-		//singleResolution();
+		singleResolution();
+		//statsOnPrefLibData("socFiles.txt");
 
 		
 		lEndTime = new Date().getTime(); //end timeetudeEcartMax
@@ -189,14 +192,25 @@ public class Kendalltau {
 	
 	//statistics on SA efficiency using CPLEX to check real value
 	private static void singleResolution() {
+		//small issue
+		thm_MOT3_stats_values = new ArrayList<Double>();
+		thm_MOT3_LUBC_stats_values = new ArrayList<Double>();
+
+
 		//int[] a = {8,2,15,10};
 	    //A = creerSubA(A,a); areSubPermu = true;
 	    
-	    int m = 3;
-	    int n = 30;
-	    Instance myInstance = new Instance(m,n);
-	    
-	    //Instance myInstance = new Instance(creerA());
+	    //int m = 3;
+	    //int n = 30;
+	    //double theta = 0.1;
+	    //Instance myInstance = new Instance(m,n);
+		//Instance myInstance = new Instance(m,n,theta);
+
+		Instance myInstance = new Instance();
+		myInstance.loadFromFilePrefLibFormat("soc/ED-00015-00000011.soc");
+		//myInstance.loadFromFilePrefLibFormat("soc/ED-00032-00000002.soc");
+	    //Instance myInstance = new Instance(cre
+        // erA());
 	    //Instance myInstance = new Instance(3,60);
 	    //Instance myInstance = new Instance();
 	    //myInstance.loadFromFile("cplex/batch1/ex_"+m+"_"+n+".txt", 1);
@@ -224,12 +238,96 @@ public class Kendalltau {
 		
 		//solvers:
 		BranchAndBound(myInstance, true);
-		cplexUsage(myInstance, true, true);
+		//cplexUsage(myInstance, true, true); //CPLEXcheck
 
 		
 		//myInstance.writeResultIntoFile("lecture_ecriture/fichier_test1.results");
 		//myInstance.writeResultIntoFile("lecture_ecriture/fichier_test"+ii+".results");
 		
+
+	}
+
+
+	private static void statsOnPrefLibData(String fichier) {
+		// ls > ../socFiles.txt
+		boolean equality = true;
+		List<String> filesToTest = new ArrayList<String>();
+
+		//reading
+		FileReader reader ;
+		try{
+			reader = new FileReader(fichier);
+			Scanner in = new Scanner(reader);
+			while (in.hasNext()){
+				String line = in.nextLine();
+				if (line.length()!=0 ){
+					filesToTest.add(line);
+				}
+			}
+
+
+			in.close();
+
+		} catch (FileNotFoundException e){
+			System.out.println("File "+ fichier +" not found");
+		}
+
+		//small issue
+		thm_MOT3_stats_values = new ArrayList<Double>();
+		thm_MOT3_LUBC_stats_values = new ArrayList<Double>();
+
+		boolean SAsuccess = false;
+		double solvedConflictingPairs = 0.0;
+
+		System.out.println(filesToTest.size() + " files found");
+		if (equality){
+			System.out.println("name" + "\t\t\t" + "m"+ "\t" + "n"+ "\t" + "SA"+ "\t" + "suc.?"+ "\t" + "Always"+ "\t" + "ECC"+ "\t" + "MOTe+L.");
+		}else{
+			System.out.println("name" + "\t\t\t" + "m"+ "\t" + "n"+ "\t" + "SA"+ "\t" + "suc.?"+ "\t" + "Always"+ "\t" + "ECC"+ "\t" + "MOT+L.");
+		}
+		for (int i =0; i< filesToTest.size(); i+=1){//256,1000
+			thm_MOT3_LUBC_stats = 0.0;
+			thm_always_stats = 0.0;
+			thm_ECC_stats = 0.0;
+			Instance myInstance = new Instance();
+			myInstance.loadFromFilePrefLibFormat("soc/"+filesToTest.get(i));
+			//myInstance.print();
+			int threshold = 95;//60 MOT3+LUBC,95 MOT3e+LUBC
+			if (myInstance.n >= 3 && myInstance.n <= threshold){
+				//heuristicSA(myInstance,false, false,3);
+				//MOT3_LUBC(myInstance, false, false, false, egalite);
+
+				heuristicSA(myInstance,false, false,3);
+				constraintsPack(myInstance,false,equality);
+				lowerBoundPack(myInstance,false);
+				BranchAndBound(myInstance, false);
+				if (myInstance.isOptimal && myInstance.best_lower_bound == myInstance.SA_upper_bound){
+					SAsuccess = true;
+				}else{
+					SAsuccess = false;
+				}
+				System.out.println(filesToTest.get(i) + "\t" + myInstance.m+ "\t" + myInstance.n
+						+ "\t" + myInstance.best_upper_bound+ "\t" + SAsuccess
+						+ "\t"+ df.format(100.0*thm_always_stats/(myInstance.nbPairs))
+						+ "%\t"+ df.format(100.0*thm_ECC_stats/(myInstance.nbPairs))
+						+ "%\t"+ df.format(100.0*thm_MOT3_LUBC_stats/(myInstance.nbPairs))
+						+ "%\t");
+			}else if (myInstance.n > threshold && myInstance.n <= 150){
+				heuristicSA(myInstance,false, false,3);
+				constraintsPack(myInstance,false,equality);
+				lowerBoundPack(myInstance,false);
+				System.out.println(filesToTest.get(i) + "\t" + myInstance.m+ "\t" + myInstance.n
+						+ "\t" + myInstance.best_upper_bound+ "\t" + "??"
+						+ "\t"+ df.format(100.0*thm_always_stats/(myInstance.nbPairs))
+						+ "%\t"+ df.format(100.0*thm_ECC_stats/(myInstance.nbPairs))
+						+ "%\t"+ df.format(100.0*thm_MOT3_LUBC_stats/(myInstance.nbPairs))
+						+ "%\t");
+			}else{
+				System.out.println(filesToTest.get(i) + "\t" + myInstance.m+ "\t" + myInstance.n
+						+ "\t" + "-" + "\t" + "-"+ "\t" + "-"+ "\t" + "-");
+			}
+
+		}
 
 	}
 	
@@ -261,7 +359,7 @@ public class Kendalltau {
 	    
 		for (int i = 1; i <= numberOfCases;i++){
 		    Instance myInstance = new Instance(m,n);
-		    cplexUsage(myInstance, true, false);
+		    //cplexUsage(myInstance, true, false); //CPLEXcheck
 		    
 		    for (int j = 1; j <= numberOfSARepetions;j++){
 				heuristicSA(myInstance, false ,false,SAmode);
@@ -317,7 +415,7 @@ public class Kendalltau {
 		int maxLowerBoundResult =0;
 		
 		//randomized lower bound
-		lowerBoundResult = borneInfSetRand(myInstance,null, 10);
+		lowerBoundResult = borneInfSetRand(myInstance,null, 10,verbose);
 		if (lowerBoundResult > maxLowerBoundResult) maxLowerBoundResult = lowerBoundResult;
 		if (verbose) System.out.println("borneInfSetRand: "+ lowerBoundResult);
 		
@@ -344,13 +442,13 @@ public class Kendalltau {
 		if (verbose) System.out.println("borneInf2.4: "+ lowerBoundResult);
 		
 		//3-cycles with constraints lower bound + cycles
-		lowerBoundResult = borneInfSet_wConstraints(myInstance,null, 3, null);
+		lowerBoundResult = borneInfSet_wConstraints(myInstance,null, 3, null, verbose);
 		myInstance.cyclesN_wConstraints_lower_bound = lowerBoundResult;
 		if (lowerBoundResult > maxLowerBoundResult) maxLowerBoundResult = lowerBoundResult;
 		if (verbose) System.out.println("borneInf2.3c_wConstraints+cycles: "+ lowerBoundResult);
 		
 		//3-cycles with constraints lower bound + cycles (fractionnals)
-		lowerBoundResult = borneInfSet_wConstraints_2(myInstance,null);
+		lowerBoundResult = borneInfSet_wConstraints_2(myInstance,null, verbose);
 		myInstance.cyclesN_wConstraints_lower_bound = lowerBoundResult;
 		if (lowerBoundResult > maxLowerBoundResult) maxLowerBoundResult = lowerBoundResult;
 		if (verbose) System.out.println("borneInf2.3c_wConstraints_2+cycles: "+ lowerBoundResult);
@@ -498,7 +596,8 @@ public class Kendalltau {
 		myInstance.trimMedianSet();
 
 	}
-	
+	/*
+	//CPLEXcheck
 	public static void cplexUsage(Instance myInstance, boolean MIP, boolean verbose){
 		if (verbose) System.out.println("");
 		if (verbose) System.out.println(" ***CPLEX***");
@@ -585,7 +684,7 @@ public class Kendalltau {
 	    	System.err.println("Concert exception caught: " + e);
 	    }
 	}
-	
+	*/
 	
 	private static void heuristicCircMvtLocalSearch(Instance myInstance, boolean verbose, boolean zeroMovesAllowed) {
 		// TODO Auto-generated method stub
@@ -2068,7 +2167,7 @@ public class Kendalltau {
 	
 	
 	//methode qui retourne une borneInf sur un set d'elements muni de contraintes utilisant la methode de Conitzer simplifiee
-	private static int borneInfSet_wConstraints (Instance myInstance,Collection<Integer> set1, int max, Permutation approx){
+	private static int borneInfSet_wConstraints (Instance myInstance,Collection<Integer> set1, int max, Permutation approx, boolean verbose){
 		//besoin de tabD
 		//besoin des contraintes aussi tabC
 		int n = myInstance.n;
@@ -2275,8 +2374,8 @@ public class Kendalltau {
 												if (poids[branch.get(branch.size()-1)-1][branch.get(branch.indexOf(e2))-1] < minArc){
 													minArc = poids[branch.get(branch.size()-1)-1][branch.get(branch.indexOf(e2))-1];
 												}
-												
-												System.out.println("cycle! : " + branch + " "+ e2 + " ("+minArc+")");
+
+												if (verbose) System.out.println("cycle! : " + branch + " "+ e2 + " ("+minArc+")");
 												
 												if (minArc > 0){
 													numberOfCycles++;
@@ -2311,7 +2410,7 @@ public class Kendalltau {
 		
 		}
 		borneInf += addCycles;
-		System.out.println(" " +numberOfCycles+ " cycles,  borneInf augmentee de " + addCycles);
+		if (verbose) System.out.println(" " +numberOfCycles+ " cycles,  borneInf augmentee de " + addCycles);
 	
 		myInstance.setLowerBound(borneInf);
 		
@@ -2320,7 +2419,7 @@ public class Kendalltau {
 	
 	
 	//methode qui retourne une borneInf sur un set d'elements muni de contraintes utilisant la methode de Conitzer simplifiee
-		private static int borneInfSet_wConstraints_2 (Instance myInstance,Collection<Integer> set1){
+		private static int borneInfSet_wConstraints_2 (Instance myInstance,Collection<Integer> set1, boolean verbose){
 			//besoin de tabD
 			//besoin des contraintes aussi tabC
 			int n = myInstance.n;
@@ -2487,8 +2586,8 @@ public class Kendalltau {
 													if (poids[branch.get(branch.size()-1)-1][branch.get(branch.indexOf(e2))-1] < minArc){
 														minArc = poids[branch.get(branch.size()-1)-1][branch.get(branch.indexOf(e2))-1];
 													}
-													
-													System.out.println("cycle! : " + branch + " "+ e2 + " ("+minArc+")");
+
+													if (verbose) System.out.println("cycle! : " + branch + " "+ e2 + " ("+minArc+")");
 													
 													if (minArc > 0){
 														numberOfCycles++;
@@ -2523,9 +2622,9 @@ public class Kendalltau {
 			
 			}
 			borneInf += addCycles;
-			System.out.println(" " +numberOfCycles+ " cycles,  borneInf augmentee de " + addCycles);
-		
-			System.out.println("borne reelle: " +borneInf);
+			if (verbose) System.out.println(" " +numberOfCycles+ " cycles,  borneInf augmentee de " + addCycles);
+
+			if (verbose) System.out.println("borne reelle: " +borneInf);
 			
 			int result = (int)Math.ceil(borneInf);
 			
@@ -2859,7 +2958,7 @@ public class Kendalltau {
 	}
 	
 	//methode qui retourne une borneInf sur un set d'elements utilisant la methode de Conitzer simplifie
-	private static int borneInfSetRand(Instance myInstance, Set<Integer> set1,  int numberOfIterations) {
+	private static int borneInfSetRand(Instance myInstance, Set<Integer> set1,  int numberOfIterations, boolean verbose) {
 		int borneInfFinal =0;
 		int n = myInstance.n;
 		
@@ -2871,7 +2970,7 @@ public class Kendalltau {
 				rand = myInstance.createARandom(n);
 			}
 			
-			System.out.print(rand + "  ");
+			if (verbose) System.out.print(rand + "  ");
 		
 			int borneInf =0;
 			int min = 0;
@@ -3009,15 +3108,15 @@ public class Kendalltau {
 			//System.out.println(" " +numberOfCycles+ " cycles,  borneInf augmentee de " + addCycles);
 			
 			*/
-			
-			
-			
-			
-			
-			
-			
-			
-			System.out.print(borneInf + " \n");
+
+
+
+
+
+
+
+
+			if (verbose) System.out.print(borneInf + " \n");
 			
 			if (borneInf > borneInfFinal){
 				borneInfFinal = borneInf;
@@ -3371,11 +3470,12 @@ public class Kendalltau {
 
 	//public static void MOT3 (Instance myInstance, Set<Permutation> a, boolean verboseDetails, boolean verbosePairs, boolean verboseStats, boolean egalite, int approximation){
 	public static void MOT3_LUBC (Instance myInstance, boolean verboseDetails, boolean verbosePairs, boolean verboseStats, boolean egalite){
-		int n;//ordre des permutations
+		int n;//size of permutations
 		int iteration =0;
 		double resolution_exacte = 0.0;
 		boolean verboseSymbols = false;
-		
+		boolean ECC_combined_with_MOT3_LUBC = true;
+
 		n=myInstance.n;
 		//n=pickARandom(a).getSize();
 		//creerTabD(a);
@@ -3386,10 +3486,11 @@ public class Kendalltau {
 				myInstance.tabC[i-1][j-1]=false;
 			}
 		}
+
 		
 		
 		if (verboseDetails) System.out.println("");
-		if (verboseDetails) System.out.println(" *** Evaluation du Major Order Theorem 3.0 mat ***");
+		if (verboseDetails) System.out.println(" *** Evaluation of Major Order Theorem 3.0 mat ***");
 		if (verboseDetails) System.out.println("");
 		if (verbosePairs) System.out.println("");
 		if (verbosePairs) System.out.println(" **MOT3.0 mat");
@@ -3403,17 +3504,94 @@ public class Kendalltau {
 		
 		int thm_major_3_0e_count = 0;
 		int LUBC_count = 0;
-		int thm_major_3_0pp_count = 0;
+		int thm_ECC_count = 0;
 
-		
+		int thm_ECC_count_SCPairs = 0;
+		int CPairs = 0;
+
+		//Extended Condorcet Criterion
+		boolean[][] ECC_table = new boolean [n][n];
+		boolean[][] ECC_constraints = new boolean [n][n];
+		for (int i = 1; i<= n; i++){
+			for (int j = 1; j<= n; j++){
+				ECC_table[i-1][j-1]=false;
+				ECC_constraints[i-1][j-1]=false;
+				if (i != j && myInstance.tabD[i-1][j-1]<myInstance.tabD[j-1][i-1]) {// i < j
+					ECC_table[i-1][j-1]=true;
+				}
+			}
+		}
+		for (int k = 1; k<= n; k++){
+			//System.out.println(k);
+		}
+		/*for (int i = 1; i<= n; i++){
+			for (int j = 1; j<= n; j++){
+				if (i != j && ECC_table[i-1][j-1]) {// i < j
+					boolean ok = true;
+					for (int k = 1; k<= n; k++){
+						if (i != j && i != k && j != k){
+							if (ECC_table[i-1][k-1] && ECC_table[k-1][j-1])
+								ok = false;
+						}
+					}
+					ok =true;
+					if (ok) System.out.println(i+" -> "+j);
+				}
+			}
+		}*/
+		for (int k = 1; k<= n; k++){//modified Floyd-Warshall
+			for (int i = 1; i<= n; i++){
+				for (int j = 1; j<= n; j++){
+					//if (i != j && i != k && j != k){
+						if (ECC_table[i-1][k-1] && ECC_table[k-1][j-1]){
+							ECC_table[i-1][j-1]=true;
+						}
+					//}
+				}
+			}
+		}
+
+		for (int i = 1; i<= n; i++){
+			for (int j = 1; j<= n; j++){
+				if (i != j ){
+					if (ECC_table[i-1][j-1] && !ECC_table[j-1][i-1]) {// i < j
+						if (ECC_combined_with_MOT3_LUBC) myInstance.tabC[i-1][j-1]=true;//***
+						thm_ECC_count++;
+						ECC_constraints[i-1][j-1]=true;
+						if (verboseDetails) System.out.println("\t contraintes par ECC  : " + i + " " + j);
+						if (verbosePairs) System.out.println("contraintes par ECC " + i + ":" + j);
+						if (ECC_combined_with_MOT3_LUBC) constraints_count++;//***
+						if (myInstance.tabD[i-1][j-1] == 0 || myInstance.tabD[i-1][j-1] == myInstance.m){
+							//nothing
+						}else{
+							thm_ECC_count_SCPairs++;
+						}
+					}
+					if (myInstance.tabD[i-1][j-1] == 0 || myInstance.tabD[i-1][j-1] == myInstance.m){
+						//nothing
+					}else{
+						CPairs++;
+					}
+				}
+			}
+		}
+
+		CPairs/=2;
+		//System.out.println(CPairs);
+		//System.out.println(thm_ECC_count_SCPairs);
+		//System.out.println(thm_ECC_count + " " + myInstance.nbPairs  + " " + (n*(n-1)/2));
+		//System.out.println(" "+ df.format(100.0*thm_ECC_count_SCPairs/CPairs) + "%");
+
 		
 		//thm tjrs
 		for (int element1 = 1; element1<=n; element1++){
 			for (int element2 = 1; element2<=n; element2++){
 				if (myInstance.tabD[element1-1][element2-1] < myInstance.tabD[element2-1][element1-1]){//si element1 est maj avant element2
-					if (myInstance.tabD[element1-1][element2-1] == 0){ 
-						myInstance.tabC[element1-1][element2-1]=true;
-						constraints_count++;
+					if (myInstance.tabD[element1-1][element2-1] == 0){
+						if (!myInstance.tabC[element1-1][element2-1]){
+							myInstance.tabC[element1-1][element2-1]=true;
+							constraints_count++;
+						}
 						thm_always_count++;
 						if (verboseDetails) System.out.println(element1 + ":" + element2);// element1:element2
 						if (verboseDetails) System.out.println("\t Thm major 3.0("+iteration+")  :  ordre majoritaire respecte " + element1 + " " + element2);
@@ -3422,9 +3600,9 @@ public class Kendalltau {
 				}//fin if maj
 			}//fin boucle 2
 		}//fin boucle 1
-		resolution_exacte = 100.0*(constraints_count)/(n*(n-1)/2);
+		resolution_exacte = 100.0*(thm_always_count)/(n*(n-1)/2);
 		if (verboseStats) System.out.println("---");
-		if (verboseStats) System.out.println("always thm: " + (constraints_count)+ "/" + (n*(n-1)/2)
+		if (verboseStats) System.out.println("always thm: " + (thm_always_count)+ "/" + (n*(n-1)/2)
 				+ " ("+df.format(resolution_exacte)+"%)");
 		//fin thm tjrs
 		
@@ -3684,10 +3862,47 @@ public class Kendalltau {
 				System.out.println("error: values not matching! " + nb + " vs " + constraints_count);
 			}
 		}
-		
 
-		
-		
+		//test ECC vs MOT3+LUBC
+		/*boolean ECCsubsumedByMOT3LUBC = true;
+		boolean MOT3LUBCsubsumedByECC = true;
+		for (int i = 1; i<= n; i++){
+			for (int j = 1; j<= n; j++){
+				if (i != j){
+					if (ECC_constraints[i-1][j-1]) {// i < j ECC
+						if (myInstance.tabC[i-1][j-1]){// i < j MOT3+LUBC
+							//nothing
+						}else{// i < j !MOT3+LUBC
+							ECCsubsumedByMOT3LUBC = false;
+						}
+
+						if(myInstance.tabC[j-1][i-1]) {// j < i MOT3+LUBC
+							System.out.println(" contradicting constraints ECC: "+(i)+" "+(j));
+						}
+					}
+					if(myInstance.tabC[i-1][j-1]){// i < j MOT3+LUBC
+						if (ECC_constraints[i-1][j-1]) {// i < j ECC
+							//nothing
+						}else{// i < j !ECC
+							MOT3LUBCsubsumedByECC = false;
+						}
+
+						if (ECC_constraints[j-1][i-1]) {// j < i ECC
+							System.out.println(" contradicting constraints MOT3+LUBC: "+(i)+" "+(j));
+						}
+					}
+				}
+			}
+		}
+		if (!ECCsubsumedByMOT3LUBC){
+			System.out.println("ECC found constraint alone");
+		}
+		if (!MOT3LUBCsubsumedByECC){
+			System.out.println("MOT3LUBC found constraint alone");
+		}*/
+
+
+		thm_ECC_stats += thm_ECC_count;
 		thm_always_stats += thm_always_count;
 		//thm_major_3_0_stats += constraints_count;
 		thm_major_3_0_revised_count = constraints_count;//on l'utilise ensuite conjointement avec l'autre seulement si Betztler est applicable
@@ -3710,8 +3925,8 @@ public class Kendalltau {
 						+ " ("+df.format(resolution_exacte)+"%)");
 			}
 			
-			System.out.println("exact resolution MOT & LUBC: " + (thm_major_3_0e_count)+ "/" + (n*(n-1)/2)
-					+ ", " + (LUBC_count)+ "/" + (n*(n-1)/2)+ ", ");
+			System.out.println("exact resolution MOT & LUBC & ECC: " + (thm_major_3_0e_count)+ "/" + (n*(n-1)/2)
+					+ ", " + (LUBC_count)+ "/" + (n*(n-1)/2)+ ", "+ ", " + (thm_ECC_count)+ "/" + (n*(n-1)/2)+ ", ");
 			
 		}
 
@@ -6146,6 +6361,13 @@ public class Kendalltau {
 	
 	//update: utilise une permutation approxime pour trier les nombres a placer puis pour avoir une premiere approximation de distance mediane
 	//utilise les contraintes MOT
+
+	/*
+	needs:
+	-heuristicSA(myInstance,...);
+	-constraintsPack(myInstance,...);
+	-lowerBoundPack(myInstance,...);
+	 */
 	public static void BranchAndBound (Instance myInstance, boolean verbose){
 		int n;//nombre d'elements
 		int reponse = 0;
@@ -6287,6 +6509,7 @@ public class Kendalltau {
 		}else{
 			if (verbose) System.out.println("BnB terminated correctly");
 			myInstance.decalreIsOptimal();
+			if (verbose) System.out.println("Kemeny Optimal Score: " + myInstance.best_lower_bound);
 		}
 		
 		
