@@ -43,7 +43,9 @@ public class Instance {
 	public Permutation Copeland_opt3_permutation;
 	public int CircMvtLocalSearch_upper_bound;
 	public int MedianGame_upper_bound;
-	public int EucledianArccosMedianRn_upper_bound;
+    public int EucledianArccosMedianRn_upper_bound;
+
+
 	
 	public int natural_lower_bound;
 	public Permutation lowerBoundBestOrderOfExploration;
@@ -72,7 +74,7 @@ public class Instance {
 	public double minDist_normalized;
 	public double maxDist_normalized;
 	public double avgDist_normalized;
-	
+    public double mallowsDispertionParameterEstimation;
 	
 	
 	//for branch and bound
@@ -168,6 +170,7 @@ public class Instance {
 		cplexTicksWithoutConstraints = 0.0;
 		
 		//stats
+        mallowsDispertionParameterEstimation = 0.0;
 		int dist = 0;
 		minDist=999999999;
 		maxDist=0;
@@ -192,7 +195,56 @@ public class Instance {
 		minDist_normalized = minDist/(double)(n*(n-1)/2);
 		maxDist_normalized = maxDist/(double)(n*(n-1)/2);
 		avgDist_normalized = avgDist/(double)(n*(n-1)/2);
+
+		calculateMallowsDispertionParameterEstimation();
 	}
+
+	public void calculateMallowsDispertionParameterEstimation(){
+        mallowsDispertionParameterEstimation = 0.0;
+        double theta = 0.0;
+        double esperance = 0.0;
+        double sum = 0.0;
+
+        double maxTheta = 10.0;
+        double minTheta = 0.0;
+        boolean ok = true;
+        double precision = 0.01;
+        int ite = 0;
+
+
+        theta = (maxTheta+minTheta)/2.0;
+
+        while (ok){
+            sum = 0.0;
+            esperance = 0.0;
+            for (double ii = 1.0; ii<= n; ii+=1.0){
+                sum += (ii*Math.exp(-theta*ii))/(1.0-Math.exp(-theta*ii));
+            }
+            esperance = (n*Math.exp(-theta))/(1.0-Math.exp(-theta)) -sum;
+            if (esperance<=avgDist){
+                maxTheta = theta;
+            }else{
+                minTheta = theta;
+            }
+            theta = (maxTheta+minTheta)/2.0;
+            if (Math.abs(esperance-avgDist)<precision || ite > 20){
+                ok =false;
+            }
+            //System.out.println(theta + ": " + esperance+ " "+ avgDist);
+            ite++;
+        }
+
+
+        /*double esperance2 = 0.0;//equivalent form
+        double sum2 = 0.0;
+        for (double ii = 1.0; ii<= n-1; ii+=1.0){
+            sum2 += (n-ii+1.0)/(Math.exp(theta*(n-ii+1.0))-1.0);
+        }
+        esperance2 = (n-1.0)/(Math.exp(theta)-1.0) -sum2;*/
+
+        //System.out.println(esperance + " vs " + avgDist);
+        mallowsDispertionParameterEstimation = theta;
+    }
 
 	//constructor from a set of permutations
 	public  Instance(Set<Permutation> SetPermu){

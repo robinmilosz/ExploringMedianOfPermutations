@@ -287,11 +287,12 @@ public class Kendalltau {
 						+ df.format(100.0*thm_always_stats/(myInstance.nbPairs))+ "%\t"
 						+ df.format(100.0*thm_ECC_stats/(myInstance.nbPairs))+ "%\t"
 						+ df.format(100.0*thm_MOT3_LUBC_stats/(myInstance.nbPairs))+ "%\t"
-						+ myInstance.cplexTicksWithoutConstraints+ "\t"
-						+ myInstance.cplexTicksWithConstraints+ "\t"
-						+ (myInstance.cplexTicksWithoutConstraints/myInstance.cplexTicksWithConstraints)+ "\t"
+						//+ myInstance.cplexTicksWithoutConstraints+ "\t"
+						//+ myInstance.cplexTicksWithConstraints+ "\t"
+						//+ (myInstance.cplexTicksWithoutConstraints/myInstance.cplexTicksWithConstraints)+ "\t"
+						+ myInstance.mallowsDispertionParameterEstimation+ "\t"
 						);
-			}else if (myInstance.n > threshold && myInstance.n <= 100){
+			}else if (myInstance.n > threshold && myInstance.n <= 170){
 				heuristicSA(myInstance,false, false,3);
 				constraintsPack(myInstance,false,equality);
 				lowerBoundPack(myInstance,false);
@@ -311,10 +312,13 @@ public class Kendalltau {
 						//+ myInstance.cplexTicksWithoutConstraints+ "\t"
 						//+ myInstance.cplexTicksWithConstraints+ "\t"
 						//+ (myInstance.cplexTicksWithoutConstraints/myInstance.cplexTicksWithConstraints)+ "\t"
+						+ myInstance.mallowsDispertionParameterEstimation+ "\t"
 						);
 			}else{
 				System.out.println(filesToTest.get(i) + "\t" + myInstance.m+ "\t" + myInstance.n
-						+ "\t" + "-" + "\t" + "-"+ "\t" + "-"+ "\t" + "-");
+						+ "\t" + "-" + "\t" + "-"+ "\t" + "-"+ "\t" + "-"+ "\t" + "-"
+						+ "\t" + myInstance.mallowsDispertionParameterEstimation
+						);
 			}
 
 		}
