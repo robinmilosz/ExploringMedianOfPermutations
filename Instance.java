@@ -74,6 +74,7 @@ public class Instance {
 	public double minDist_normalized;
 	public double maxDist_normalized;
 	public double avgDist_normalized;
+	public double avgDistToCenter;
     public double mallowsDispertionParameterEstimation;
 	
 	
@@ -196,11 +197,12 @@ public class Instance {
 		maxDist_normalized = maxDist/(double)(n*(n-1)/2);
 		avgDist_normalized = avgDist/(double)(n*(n-1)/2);
 
-		calculateMallowsDispertionParameterEstimation();
+		avgDistToCenter=0.0;
 	}
 
 	public void calculateMallowsDispertionParameterEstimation(){
         mallowsDispertionParameterEstimation = 0.0;
+		avgDistToCenter=0.0;
         double theta = 0.0;
         double esperance = 0.0;
         double sum = 0.0;
@@ -210,6 +212,13 @@ public class Instance {
         boolean ok = true;
         double precision = 0.01;
         int ite = 0;
+
+        //Permutation pi2 = pickARandomMedian();
+		Permutation pi2 = pickARandomMedian();
+		for(Permutation pi1 : A){
+			avgDistToCenter += pi1.distanceTo(pi2);
+		}
+		avgDistToCenter /= m;
 
 
         theta = (maxTheta+minTheta)/2.0;
@@ -221,13 +230,13 @@ public class Instance {
                 sum += (ii*Math.exp(-theta*ii))/(1.0-Math.exp(-theta*ii));
             }
             esperance = (n*Math.exp(-theta))/(1.0-Math.exp(-theta)) -sum;
-            if (esperance<=avgDist){
+            if (esperance<=avgDistToCenter){
                 maxTheta = theta;
             }else{
                 minTheta = theta;
             }
             theta = (maxTheta+minTheta)/2.0;
-            if (Math.abs(esperance-avgDist)<precision || ite > 20){
+            if (Math.abs(esperance-avgDistToCenter)<precision || ite > 20){
                 ok =false;
             }
             //System.out.println(theta + ": " + esperance+ " "+ avgDist);

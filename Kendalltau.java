@@ -258,7 +258,7 @@ public class Kendalltau {
 		}else{
 			System.out.println("name" + "\t\t\t" + "m"+ "\t" + "n"+ "\t" + "SA"+ "\t" + "suc.?"+ "\t" + "Always"+ "\t" + "ECC"+ "\t" + "MOT+L.");
 		}
-		for (int i =200; i< filesToTest.size(); i+=1){//256,1000
+		for (int i =233; i< filesToTest.size(); i++){
 			thm_MOT3_LUBC_stats = 0.0;
 			thm_always_stats = 0.0;
 			thm_ECC_stats = 0.0;
@@ -276,7 +276,7 @@ public class Kendalltau {
 				BranchAndBound(myInstance, false);
 				//cplexUsage(myInstance, true, false, false); //CPLEXcheck
 				//cplexUsage(myInstance, true, false, true); //CPLEXcheck
-
+				myInstance.calculateMallowsDispertionParameterEstimation();
 				if (myInstance.isOptimal && myInstance.best_lower_bound == myInstance.SA_upper_bound){
 					SAsuccess = true;
 				}else{
@@ -298,6 +298,7 @@ public class Kendalltau {
 				lowerBoundPack(myInstance,false);
 				//cplexUsage(myInstance, true, false, false); //CPLEXcheck
 				//cplexUsage(myInstance, true, false, true); //CPLEXcheck
+				myInstance.calculateMallowsDispertionParameterEstimation();
 				if (myInstance.isOptimal && myInstance.best_lower_bound == myInstance.SA_upper_bound){
 					SAsuccess = true;
 				}else{
